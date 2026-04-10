@@ -85,20 +85,21 @@ import dj_database_url
 import dj_database_url
 import os
 
-# ... (altre codi)
+# Busquem la variable d'entorn
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-}
-
-# Forcem el motor de Postgres si estem a Neon
-if 'postgresql' in DATABASES['default'].get('ENGINE', ''):
-    DATABASES['default']['ENGINE'] = 'django.db.backends.postgresql'
-
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL)
+    }
+else:
+    # Si no la troba (local), usa SQLite per no petar
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
