@@ -84,20 +84,30 @@ import dj_database_url
 # Busca la part de DATABASES i deixa-la així:
 import dj_database_url
 import os
+from pathlib import Path
 
-# Busquem la variable d'entorn
+# Defineix BASE_DIR si no el tens definit a dalt
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Intentem agafar la variable de Vercel (Neon)
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 if DATABASE_URL:
+    # Si existeix la variable (Producció a Vercel)
     DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL)
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True
+        )
     }
 else:
-    # Si no la troba (local), usa SQLite per no petar
+    # Si NO existeix (Local al teu Mac)
+    print("⚠️ DATABASE_URL no trobada, usant SQLite local")
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
 
