@@ -1,3 +1,5 @@
 from django.contrib import admin
+from .models import Instalacio, Reserva # Importem els teus models
 
-# Register your models here.
+admin.site.register(Instalacio)
+admin.site.register(Reserva)

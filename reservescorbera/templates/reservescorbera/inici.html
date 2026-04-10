@@ -1,2 +1,9 @@
 <h1>Hola, {{ user.username }}!</h1>
-<p>Has entrat correctament a l'app de Corbera.</p>
+<p>Benvingut al gestor de reserves de Corbera.</p>
+
+<form action="{% url 'logout' %}" method="post">
+    {% csrf_token %}
+    <button type="submit" style="background-color: #ff4d4d; color: white; border: none; padding: 10px; cursor: pointer;">
+        Tancar Sessió
+    </button>
+</form>

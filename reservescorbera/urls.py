@@ -1,7 +1,8 @@
 from django.urls import path
-from . import views
+from . import views  # El punt (.) significa "importa les views d'aquesta mateixa carpeta"
 
 urlpatterns = [
-    path('', views.inici, name='inici'),
-    path('login/', views.login_usuari, name='login'), # Revisa que la barra / estigui al final
+    path('', views.home, name='home'),
+    path('login/', views.login_usuari, name='login'),
+    path('inici/', views.inici, name='inici'),
 ]
