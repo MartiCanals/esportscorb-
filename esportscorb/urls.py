@@ -20,7 +20,7 @@ urlpatterns = [
     # Reserva dinàmica
     path('reserva/<int:instalacio_id>/', views.fer_reserva, name='fer_reserva'),
 
-    # Gestió tècnica (Staff)
+    # Gestió tècnica (Staff) 
     path('gestio-tecnica/', views.gestionar_reserves, name='gestionar_reserves'),
     path('gestio-tecnica/nova-instalacio/', views.crear_instalacio, name='crear_instalacio'),
     path('gestio-tecnica/eliminar-instalacio/<int:pk>/', views.eliminar_instalacio, name='eliminar_instalacio'),
