@@ -328,7 +328,7 @@ def llista_pendents(request):
     pendents = Reserva.objects.filter(estat='pendent').order_by('inici')
     return render(request, 'reservescorbera/pendents.html', {'pendents': pendents})
 
-    @login_required
+@login_required
 def pistes(request):
     # Agafem les dades que necessita el calendari
     instalacions = Instalacio.objects.all().order_by('nom')
