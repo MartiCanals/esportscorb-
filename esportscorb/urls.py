@@ -11,7 +11,7 @@ urlpatterns = [
     # Pàgines principals
     path('', views.home, name='home'),
     path('inici/', views.inici, name='inici'),
-    
+    path('calendari-pistes/', views.pistes, name='calendari_instalacions'),
     # Autenticació
     path('login/', views.login_usuari, name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
