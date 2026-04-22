@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <title>Nova Instal·lació - EsportsCorb</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .btn-save { background: #1a1a1a; color: #d4af37; border: 2px solid #d4af37; font-weight: bold; }
+        .btn-save:hover { background: #d4af37; color: #1a1a1a; }
+        .form-label { font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-7">
+                <div class="card p-4">
+                    <h2 class="mb-4" style="border-left: 5px solid #d4af37; padding-left: 15px;">Crear Nova Instal·lació</h2>
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Nom de la Instal·lació</label>
+                            <input type="text" name="nom" class="form-control" placeholder="Ex: Pavelló Central" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Hora Obertura</label>
+                                <input type="time" name="hora_obertura" class="form-control" value="08:00">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Hora Tancament</label>
+                                <input type="time" name="hora_tancament" class="form-control" value="23:00">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Imatge representativa</label>
+                            <input type="file" name="imatge" class="form-control" accept="image/*">
+                            <div class="form-text">Aquesta foto sortirà al formulari de reserva.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Color al Calendari</label>
+                            <input type="color" name="color" class="form-control form-control-color w-100" value="#d4af37">
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items: center;">
+                            <a href="{% url 'gestionar_reserves' %}" class="text-muted text-decoration-none">← Tornar</a>
+                            <button type="submit" class="btn btn-save px-5">CREAR ARA</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

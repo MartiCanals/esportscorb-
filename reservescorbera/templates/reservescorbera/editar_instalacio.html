@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Instal·lació - Esports Corbera</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #0f0f0f; color: white; font-family: 'Inter', sans-serif; }
+        .card-edit { 
+            background-color: #1a1a1a; 
+            border: 1px solid #d4af37; 
+            border-radius: 15px; 
+            margin-top: 50px;
+            padding: 30px;
+        }
+        .form-label { color: #d4af37; font-weight: bold; text-transform: uppercase; font-size: 0.8rem; }
+        .form-control { background-color: #222; border: 1px solid #444; color: white; }
+        .form-control:focus { background-color: #2a2a2a; border-color: #d4af37; color: white; box-shadow: none; }
+        .btn-save { background-color: #d4af37; color: black; font-weight: 800; border: none; }
+        .btn-save:hover { background-color: #bfa030; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card-edit shadow">
+                    <h2 class="text-center mb-4" style="color: #d4af37; font-weight: 800;">EDITAR PISTA</h2>
+                    <hr style="border-color: #444;">
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Nom de la instal·lació</label>
+                            <input type="text" name="nom" class="form-control" value="{{ instalacio.nom }}" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Color al calendari</label>
+                                <input type="color" name="color" class="form-control form-control-color w-100" value="{{ instalacio.color }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Imatge (opcional)</label>
+                                <input type="file" name="imatge" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Hora d'obertura</label>
+                                <input type="time" name="hora_obertura" class="form-control" value="{{ instalacio.hora_obertura|time:'H:i' }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Hora de tancament</label>
+                                <input type="time" name="hora_tancament" class="form-control" value="{{ instalacio.hora_tancament|time:'H:i' }}">
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-save">GUARDAR CANVIS</button>
+                            <a href="{% url 'gestionar_reserves' %}#config" class="btn btn-outline-light btn-sm">Cancel·lar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

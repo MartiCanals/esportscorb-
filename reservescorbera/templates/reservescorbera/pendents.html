@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestió de Sol·licituds - EsportsCorb</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary: #1a1a1a;
+            --accent: #d4af37;
+            --bg: #f4f7f6;
+            --success: #28a745;
+            --danger: #dc3545;
+        }
+
+        body {
+            background-color: var(--bg);
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            color: #333;
+        }
+
+        /* HEADER MILLORAT */
+        .header-section {
+            background: var(--primary);
+            color: white;
+            padding: 60px 0 40px 0;
+            border-bottom: 5px solid var(--accent);
+            position: relative;
+        }
+
+        .btn-tornar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--accent);
+            padding: 8px 15px;
+            border-radius: 8px;
+        }
+
+        .btn-tornar:hover {
+            background: var(--accent);
+            color: var(--primary);
+        }
+
+        /* TARGETES (CARDS) */
+        .card-sollicitud {
+            border: none;
+            border-radius: 20px;
+            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .card-sollicitud:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+
+        .card-badge-top {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pista-tag {
+            background: var(--primary);
+            color: var(--accent);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        /* BOTONS */
+        .btn-action {
+            border-radius: 12px;
+            padding: 12px;
+            font-weight: 700;
+            transition: 0.2s;
+        }
+
+        .btn-aprovar {
+            background-color: var(--success);
+            color: white;
+            border: none;
+        }
+
+        .btn-aprovar:hover {
+            background-color: #218838;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-rebutjar {
+            background-color: #fff;
+            color: var(--danger);
+            border: 2px solid var(--danger);
+        }
+
+        .btn-rebutjar:hover {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .empty-state {
+            background: white;
+            padding: 50px;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <section class="header-section text-center">
+        <a href="{% url 'inici' %}" class="btn-tornar">
+            <i class="bi bi-arrow-left"></i> TORNAR AL TAULELL
+        </a>
+        
+        <div class="container">
+            <h1 class="fw-bold text-uppercase mb-2" style="letter-spacing: 2px;">
+                Gestió de <span style="color: var(--accent);">Sol·licituds</span>
+            </h1>
+            <p class="opacity-75">Revisa i valida les peticions d'entitats i clubs</p>
+        </div>
+    </section>
+
+    <div class="container mb-5" style="margin-top: -30px;">
+        <div class="row g-4">
+            {% for r in pendents %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card card-sollicitud h-100">
+                    <div class="card-badge-top">
+                        <span class="pista-tag"><i class="bi bi-geo-alt-fill me-1"></i> {{ r.instalacio.nom }}</span>
+                        <span class="small text-muted fw-bold">{{ r.inici|date:"d M Y" }}</span>
+                    </div>
+
+                    <div class="card-body p-4">
+                        <h4 class="fw-bold mb-3">{{ r.activitat }}</h4>
+                        
+                        <div class="info-row">
+                            <i class="bi bi-clock text-primary"></i>
+                            <span class="fw-bold">{{ r.inici|time:"H:i" }} - {{ r.final|time:"H:i" }}</span>
+                        </div>
+                        
+                        <div class="info-row mb-4">
+                            <i class="bi bi-person-circle text-muted"></i>
+                            <span>Sol·licitat per: <strong>{{ r.entitat.username }}</strong></span>
+                        </div>
+
+                        <div class="d-flex gap-2 pt-2">
+                            <form method="POST" class="flex-grow-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="reserva_id" value="{{ r.id }}">
+                                <button type="submit" name="accio" value="validar" class="btn btn-action btn-aprovar w-100">
+                                    <i class="bi bi-check-circle-fill me-2"></i>APROVAR
+                                </button>
+                            </form>
+
+                            <form method="POST">
+                                {% csrf_token %}
+                                <input type="hidden" name="reserva_id" value="{{ r.id }}">
+                                <button type="submit" name="accio" value="rebutjar" class="btn btn-action btn-rebutjar" title="Rebutjar">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center">
+                <div class="empty-state">
+                    <i class="bi bi-cup-hot display-1 text-muted opacity-25"></i>
+                    <h2 class="text-muted mt-4 fw-bold">No hi ha res pendent!</h2>
+                    <p class="text-muted mb-4">Gaudeix d'un cafè, totes les reserves estan al dia.</p>
+                    <a href="{% url 'inici' %}" class="btn btn-dark px-5 py-3 rounded-pill fw-bold" style="background: var(--primary); border: 2px solid var(--accent); color: var(--accent);">
+                        TORNAR A L'INICI
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

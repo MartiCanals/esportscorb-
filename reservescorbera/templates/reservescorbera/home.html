@@ -2,19 +2,153 @@
 <html lang="ca">
 <head>
     <meta charset="UTF-8">
-    <title>Esports Corbera</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EsportsCorb - Calendari Públic</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root {
+            --primary-color: #1a1a1a;
+            --accent-color: #d4af37;
+            --bg-color: #f8f9fa;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg-color); }
+
+        #top-bar { 
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 30px; background: var(--primary-color); color: white;
+        }
+        #top-bar h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
+        #top-bar h1 span { color: var(--accent-color); }
+
+        .controls-container { 
+            background: #fff; 
+            padding: 25px; 
+            border-bottom: 1px solid #ddd; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        
+        .filter-label {
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .custom-select {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px 15px;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            font-weight: 600;
+            background-color: white;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .custom-select:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+
+        .container { padding: 20px; }
+        #calendar { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); }
+
+        .btn-login { border: 1px solid var(--accent-color); background: transparent; color: var(--accent-color); padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 0.8rem; font-weight: bold; }
+        .btn-login:hover { background: var(--accent-color); color: black; }
+        
+        .swal2-popup-custom { border: 2px solid var(--accent-color) !important; border-radius: 15px !important; }
+    </style>
 </head>
-<body class="p-5">
-    <div class="container">
-        <h1 class="mb-4">📍 Instal·lacions actives (Neon)</h1>
-        <div class="list-group">
-            {% for i in instalacions %}
-                <div class="list-group-item">{{ i.nom }}</div>
-            {% endfor %}
-        </div>
-        <hr class="my-4">
-        <a href="/login/" class="btn btn-primary">Anar al Login</a>
+<body>
+
+    <div id="top-bar">
+        <h1>Esports<span>Corb</span></h1>
+        <a href="{% url 'login' %}" class="btn-login">ACCÉS ENTITATS</a>
     </div>
+
+    <div class="controls-container">
+        <label class="filter-label">Selecciona una instal·lació:</label>
+        <select class="custom-select" id="selector-instalacio" onchange="filtrarPerDesplegable(this.value)">
+            <option value="tots">--- TOTES LES INSTAL·LACIONS ---</option>
+            {% for inst in instalacions %}
+                <option value="{{ inst.nom|lower }}">{{ inst.nom }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="container">
+        <div id='calendar'></div>
+    </div>
+
+    <script>
+        let calendar;
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'timeGridWeek',
+                locale: 'ca',
+                firstDay: 1,
+                slotMinTime: '00:00:00',
+                slotMaxTime: '24:00:00',
+                scrollTime: '08:00:00', 
+                allDaySlot: false,
+                headerToolbar: { 
+                    left: 'prev,next today', 
+                    center: 'title', 
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay' 
+                },
+                buttonText: { today: 'Avui', month: 'Mes', week: 'Setmana', day: 'Dia' },
+                events: '/api/reserves/',
+
+                eventClick: function(info) {
+                    const inst = info.event.extendedProps.instalacio || "Instal·lació";
+                    const inici = info.event.start.toLocaleTimeString('ca-ES', {hour: '2-digit', minute: '2-digit'});
+                    const fi = info.event.end.toLocaleTimeString('ca-ES', {hour: '2-digit', minute: '2-digit'});
+
+                    Swal.fire({
+                        title: `<span style="color: #d4af37; text-transform: uppercase; font-weight: 800;">${inst}</span>`,
+                        html: `
+                            <div style="text-align: left; padding: 10px; border-top: 1px solid #444;">
+                                <p style="margin-bottom: 10px;"><strong>📌 Activitat:</strong><br>${info.event.title}</p>
+                                <p style="margin-bottom: 0;"><strong>⏰ Horari:</strong> de ${inici}h a ${fi}h</p>
+                            </div>
+                        `,
+                        background: '#1a1a1a', color: '#fff', confirmButtonColor: '#d4af37',
+                        confirmButtonText: 'ENTÈS', customClass: { popup: 'swal2-popup-custom' }
+                    });
+                },
+
+                eventDidMount: function(info) {
+                    // La lògica de colors ara és automàtica des de l'API (views.py)
+                    // Només apliquem estils per a les pendents si fos necessari, 
+                    // però en el calendari públic les pendents normalment no es mostren 
+                    // o ja venen amb el color gris des de Python.
+                }
+            });
+            calendar.render();
+        });
+
+        function filtrarPerDesplegable(valor) {
+            const cerca = valor.toLowerCase().trim();
+            calendar.getEvents().forEach(ev => {
+                const nomInstalacio = (ev.extendedProps.instalacio || "").toLowerCase().trim();
+                if (cerca === 'tots' || nomInstalacio.includes(cerca)) {
+                    ev.setProp('display', 'auto');
+                } else {
+                    ev.setProp('display', 'none');
+                }
+            });
+        }
+    </script>
 </body>
 </html>
