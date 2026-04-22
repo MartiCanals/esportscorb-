@@ -12,23 +12,24 @@ from .models import Instalacio, Reserva
 
 # 1. HOME PÚBLIC
 def home(request):
-    # 1. Agafem totes les instal·lacions
+    # Si algú loguejat entra a la home, NO el bloquegis aquí. 
+    # Deixa que vegi la presentació pública si vol.
+    return render(request, 'reservescorbera/home.html')
+
+@login_required
+def inici(request):
+    # Aquesta és la pantalla de benvinguda de l'usuari (el seu panell)
+    return render(request, 'reservescorbera/inici.html')
+
+@login_required
+def calendari_pistes(request):
+    # AQUESTA és la vista que realment vols carregar quan cliquis "Fer reserva"
     instalacions = Instalacio.objects.all().order_by('nom')
-    
-    # 2. Creem un diccionari (context) amb la info comuna
-    # Importat: afegim 'avui' per al calendari del qüestionari
     context = {
         'instalacions': instalacions,
-        'avui': timezone.now().date()  # Això permet al HTML saber quin dia és avui
+        'avui': timezone.now().date()
     }
-    
-    # 3. Decidim quina plantilla ensenyar
-    if request.user.is_authenticated:
-        # Si està loguejat, va directe a triar pista (calendari_instalacions.html)
-        return render(request, 'reservescorbera/inici.html', context)
-    
-    # Si no, veu la home pública
-    return render(request, 'reservescorbera/home.html', context)
+    return render(request, 'reservescorbera/calendari_instalacions.html', context)
 # 2. LOGIN
 def login_usuari(request):
     error = None
