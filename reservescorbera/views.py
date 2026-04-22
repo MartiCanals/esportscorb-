@@ -12,18 +12,28 @@ from .models import Instalacio, Reserva
 
 # 1. HOME PÚBLIC
 def home(request):
-    # Si algú loguejat entra a la home, NO el bloquegis aquí. 
-    # Deixa que vegi la presentació pública si vol.
-    return render(request, 'reservescorbera/home.html')
+    # 1. Tornem a carregar les instal·lacions perquè el menú desplegable les trobi
+    instalacions = Instalacio.objects.all().order_by('nom')
+    
+    # 2. Les fiquem al context
+    context = {
+        'instalacions': instalacions,
+        'avui': timezone.now().date()
+    }
+    
+    # 3. Ara el template 'home.html' ja tindrà les dades per al desplegable
+    return render(request, 'reservescorbera/home.html', context)
 
 @login_required
 def inici(request):
-    # Aquesta és la pantalla de benvinguda de l'usuari (el seu panell)
-    return render(request, 'reservescorbera/inici.html')
+    # Si al teu 'inici.html' també hi ha el desplegable al menú, 
+    # també hauries de carregar les instal·lacions aquí:
+    instalacions = Instalacio.objects.all().order_by('nom')
+    return render(request, 'reservescorbera/inici.html', {'instalacions': instalacions})
 
 @login_required
 def calendari_pistes(request):
-    # AQUESTA és la vista que realment vols carregar quan cliquis "Fer reserva"
+    # Aquesta ja la tenies bé, és la que carrega el calendari de reserves
     instalacions = Instalacio.objects.all().order_by('nom')
     context = {
         'instalacions': instalacions,
