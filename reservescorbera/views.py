@@ -25,7 +25,7 @@ def home(request):
     # 3. Decidim quina plantilla ensenyar
     if request.user.is_authenticated:
         # Si està loguejat, va directe a triar pista (calendari_instalacions.html)
-        return render(request, 'reservescorbera/calendari_instalacions.html', context)
+        return render(request, 'reservescorbera/login.html', context)
     
     # Si no, veu la home pública
     return render(request, 'reservescorbera/home.html', context)
