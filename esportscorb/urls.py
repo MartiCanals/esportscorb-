@@ -10,7 +10,7 @@ urlpatterns = [
     
     # Pàgines principals
     path('', views.home, name='home'),
-    path('calendari-pistes/', views.home, name='calendari_instalacions'), # <-- NOVA RUTA DEFINIDA
+    path('calendari-pistes/', views.pistes, name='calendari_instalacions'), # <-- NOVA RUTA DEFINIDA
     path('inici/', views.inici, name='inici'),
     
     # Autenticació
