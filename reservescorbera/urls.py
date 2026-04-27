@@ -22,6 +22,7 @@ urlpatterns = [
     path('gestio-tecnica/', views.gestionar_reserves, name='gestionar_reserves'),
     path('reserva/editar/<int:pk>/', views.editar_reserva, name='editar_reserva'),
     path('reserva/eliminar/<int:pk>/', views.eliminar_reserva, name='eliminar_reserva'),
+    path('perfil/', views.perfil, name='perfil'),
 
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
 ]

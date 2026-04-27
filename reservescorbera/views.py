@@ -9,6 +9,10 @@ from django.utils import timezone
 from django.db.models import Q  
 from datetime import datetime
 from .models import Instalacio, Reserva 
+from .forms import UserProfileForm  # El punt (.) vol dir "en aquesta mateixa carpeta"
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import update_session_auth_hash
+from datetime import timedelta
 
 # 1. HOME PÚBLIC
 def home(request):
@@ -26,10 +30,48 @@ def home(request):
 
 @login_required
 def inici(request):
-    # Si al teu 'inici.html' també hi ha el desplegable al menú, 
-    # també hauries de carregar les instal·lacions aquí:
+    # 1. PROCESSAR ACCIONS DEL TÈCNIC
+    if request.method == "POST" and request.user.is_staff:
+        reserva_id = request.POST.get('reserva_id')
+        accio = request.POST.get('accio')
+        try:
+            reserva = Reserva.objects.get(id=reserva_id)
+            if accio == 'validar':
+                reserva.estat = 'validada'  # OK: Coincideix amb el teu Model
+            elif accio == 'rebutjar':
+                reserva.estat = 'rebutjada' # CANVIAT: Abans deies 'anul·lada', però al model és 'rebutjada'
+            reserva.save()
+        except Reserva.DoesNotExist:
+            pass
+        return redirect('/inici/?gestio=1')
+
+    # 2. DADES PER AL TÈCNIC (Filtratge de dades velles)
+    pendents = []
+    num_pendents = 0
+    if request.user.is_staff:
+        from django.utils import timezone
+        ara = timezone.now()
+        
+        # Filtrem perquè NO surtin les reserves que ja han passat de data
+        pendents = Reserva.objects.filter(
+            estat='pendent',
+            inici__gte=ara  # Només les que comencen ara o en el futur
+        ).order_by('inici')
+        num_pendents = pendents.count()
+
+    # 3. DADES PER A L'USUARI
     instalacions = Instalacio.objects.all().order_by('nom')
-    return render(request, 'reservescorbera/inici.html', {'instalacions': instalacions})
+    les_meves_reserves = Reserva.objects.filter(entitat=request.user).order_by('-inici')
+
+    context = {
+        'instalacions': instalacions,
+        'les_meves_reserves': les_meves_reserves,
+        'pendents': pendents,
+        'num_pendents': num_pendents,
+        'es_tecnic': request.user.is_staff
+    }
+    
+    return render(request, 'reservescorbera/inici.html', context)
 
 @login_required
 def calendari_pistes(request):
@@ -59,76 +101,64 @@ def login_usuari(request):
             error = "Dades incorrectes"
     return render(request, 'reservescorbera/login.html', {'error': error})
 
-# 3. ÀREA PRIVADA
-@login_required(login_url='/login/')
-def inici(request):
-    return render(request, 'reservescorbera/inici.html', {
-        'les_meves_reserves': Reserva.objects.filter(entitat=request.user).order_by('-inici'),
-        'instalacions': Instalacio.objects.all().order_by('nom'),
-        'es_tecnic': request.user.is_staff
-    })
+
 
 # 4. FER RESERVA (DINÀMICA)
-@login_required(login_url='/login/')
+@login_required
 def fer_reserva(request, instalacio_id):
     instalacio = get_object_or_404(Instalacio, id=instalacio_id)
-    
     dia = request.GET.get('data')
     hora_inici = request.GET.get('hora_inici')
     hora_fi = request.GET.get('hora_fi')
-    
-    # AGAFEM EL NOM DEL QÜESTIONARI
-    # El busquem pel nom 'nom_activitat' que hem posat a l'HTML
-    nom_activitat_real = request.GET.get('nom_activitat', 'Activitat')
+    nom_activitat = request.GET.get('nom_activitat', 'Activitat')
 
     if dia and hora_inici and hora_fi:
         try:
+            # Creem objectes datetime conscients de la zona horària
             dt_inici = timezone.make_aware(datetime.strptime(f"{dia} {hora_inici}", "%Y-%m-%d %H:%M"))
             dt_fi = timezone.make_aware(datetime.strptime(f"{dia} {hora_fi}", "%Y-%m-%d %H:%M"))
 
-            # Validació de solapament...
+            # COMPROVACIÓ CRÍTICA: Hi ha alguna reserva que se solapi?
             solapament = Reserva.objects.filter(
                 instalacio=instalacio,
                 estat__in=['pendent', 'validada']
-            ).filter(Q(inici__lt=dt_fi, final__gt=dt_inici)).exists()
-            
+            ).filter(
+                Q(inici__lt=dt_fi, final__gt=dt_inici) # La lògica matemàtica de solapament
+            ).exists()
+
             if solapament:
-                messages.error(request, "Aquesta franja ja està ocupada.")
-                return redirect('home')
+                messages.error(request, "Aquesta franja horària s'ha ocupat mentrestant. Tria'n una altra.")
+                return redirect('calendari_instalacions') # Torna al selector de pistes
 
-            # FORMAT DEL TÍTOL PER AL CALENDARI:
-            # Resultat: "marti - Sol·licitud: Entrenament Cadet"
-            titol_per_calendari = f"{request.user.username} - Sol·licitud: {nom_activitat_real}"
-
+            # Si no hi ha solapament, creem
             Reserva.objects.create(
-                entitat=request.user, 
+                entitat=request.user,
                 instalacio=instalacio,
-                activitat=titol_per_calendari, # Guardem el títol complet
-                inici=dt_inici, 
-                final=dt_fi, 
+                activitat=f"{request.user.username} - {nom_activitat}",
+                inici=dt_inici,
+                final=dt_fi,
                 estat='pendent'
             )
-            
-            messages.success(request, "Sol·licitud enviada!")
+            messages.success(request, "Sol·licitud enviada correctament!")
             return redirect('inici')
-                
-        except ValueError:
-            messages.error(request, "Error de format.")
+
+        except Exception as e:
+            messages.error(request, f"Error en processar la reserva: {e}")
     
     return redirect('inici')
 # 5. GESTIÓ TÈCNICA (STAFF)
 @staff_member_required
 def gestionar_reserves(request):
-    # 1. Agafem totes les dades de la base de dades
-    totes_les_reserves = Reserva.objects.all().order_by('-inici')[:50] # Últimes 50
+    totes_les_reserves = Reserva.objects.all().order_by('-inici')[:50]
     totes_les_instalacions = Instalacio.objects.all().order_by('nom')
-    tots_els_usuaris = User.objects.all().order_by('username')
+    
+    # Filtrem aquí l'usuari marti
+    usuaris_filtrats = User.objects.exclude(username='marti').order_by('username')
 
-    # 2. LES PASSEM AL TEMPLATE (Això és el que et deu faltar)
     context = {
         'historial': totes_les_reserves,
         'instalacions': totes_les_instalacions,
-        'usuaris': tots_els_usuaris,
+        'usuaris': usuaris_filtrats, # Envia la llista filtrada!
     }
     
     return render(request, 'reservescorbera/gestio_tecnica.html', context)
@@ -180,61 +210,117 @@ def eliminar_reserva(request, pk):
     return redirect('gestionar_reserves')
 
 # 8. APIs
-def api_reserves(request):
-    # Agafem les reserves (tant validades com pendents)
-    reserves = Reserva.objects.filter(estat__in=['validada', 'pendent'])
-    events = []
-    
-    for r in reserves:
-        # Triem el color: gris si és pendent, color de la pista si és validada
-        if r.estat == 'pendent':
-            color_event = '#adb5bd'  # Gris clar
-        else:
-            color_event = r.instalacio.color if r.instalacio.color else '#d4af37'
-
-        events.append({
-            'id': r.id,
-            # --- EL CANVI CLAU ÉS AQUÍ ---
-            # r.activitat ja conté "NomUsuari - Sol·licitud: El que han escrit"
-            'title': r.activitat, 
-            
-            'start': r.inici.isoformat(),
-            'end': r.final.isoformat(),
-            'backgroundColor': color_event,
-            'borderColor': color_event,
-            'extendedProps': {
-                'instalacio': r.instalacio.nom,
-                'estat': r.estat,
-                'usuari': r.entitat.username
-            }
-        })
-    return JsonResponse(events, safe=False)
-
 def api_hores_ocupades(request):
-    # Agafem els paràmetres tal com els envia el JavaScript del Modal
-    # El JS envia 'data' i 'instalacio'
     dia_triat = request.GET.get('data') 
     inst_id = request.GET.get('instalacio')
     
     if not dia_triat or not inst_id:
         return JsonResponse([], safe=False)
 
-    # Busquem les reserves per a aquella pista, aquell dia i que no estiguin rebutjades
+    # 1. Busquem les reserves. 
+    # Filtrem per instal·lació i data, només les que NO estan rebutjades.
     reserves = Reserva.objects.filter(
         instalacio_id=inst_id, 
         inici__date=dia_triat, 
         estat__in=['pendent', 'validada']
     )
     
-    # El JavaScript del qüestionari espera una llista simple de strings: ["08:00", "09:00"]
-    # strftime('%H:00') assegura que si la reserva és a les 10:30, la marqui com la franja de les 10:00 ocupada
-    ocupades = [r.inici.strftime('%H:00') for r in reserves]
+    ocupades = []
     
-    # Eliminem duplicats si n'hi hagués
-    ocupades = list(set(ocupades))
-    
-    return JsonResponse(ocupades, safe=False)
+    for r in reserves:
+        # 2. CONVERSIÓ A HORA LOCAL (Molt important)
+        # Si Django usa Timezones, convertim l'hora de la BD a l'hora que veu l'usuari
+        inici_local = timezone.localtime(r.inici)
+        final_local = timezone.localtime(r.final)
+        
+        actual = inici_local
+        while actual < final_local:
+            # Afegim l'hora en format "HH:MM" (ex: "09:15")
+            ocupades.append(actual.strftime('%H:%M'))
+            actual += timedelta(minutes=15)
+            
+    # 3. Retornem la llista única (set) per evitar duplicats
+    return JsonResponse(list(set(ocupades)), safe=False)
 
+from django.utils import timezone
+from datetime import timedelta
+from django.http import JsonResponse
+
+def api_hores_ocupades(request):
+    dia_triat = request.GET.get('data') 
+    inst_id = request.GET.get('instalacio')
+    
+    if not dia_triat or not inst_id:
+        return JsonResponse([], safe=False)
+
+    # 1. Busquem les reserves. 
+    reserves = Reserva.objects.filter(
+        instalacio_id=inst_id, 
+        inici__date=dia_triat, 
+        estat__in=['pendent', 'validada']
+    )
+    
+    ocupades = set() # Usem un set per evitar duplicats automàticament
+    
+    for r in reserves:
+        # Convertim a hora local perquè coincideixi amb el que l'usuari veu al formulari
+        # Si no uses zones horàries, r.inici i r.final ja estaran bé
+        inici = timezone.localtime(r.inici)
+        final = timezone.localtime(r.final)
+        
+        actual = inici
+        # EL TRUC: Mentre sigui MENOR que el final (no menor o igual)
+        # Si la reserva acaba a les 15:15, el bucle s'atura a les 15:00
+        while actual < final:
+            ocupades.add(actual.strftime('%H:%M'))
+            actual += timedelta(minutes=15)
+            
+    # Retornem la llista ordenada
+    return JsonResponse(sorted(list(ocupades)), safe=False)
+def api_reserves(request):
+    if request.user.is_authenticated and request.user.is_staff:
+        # El tècnic ho veu tot
+        reserves = Reserva.objects.all()
+    else:
+        # Entitats i públic només validades
+        reserves = Reserva.objects.filter(estat='validada')
+    
+    events = []
+    for r in reserves:
+        # Color base de la instal·lació
+        color_base = r.instalacio.color or '#d4af37'
+        titol = r.activitat
+        
+        # Propietats per defecte (Validades)
+        background_color = color_base
+        border_color = color_base
+        text_color = '#ffffff' # Text blanc per a les validades
+
+        if r.estat == 'pendent':
+            # Si és pendent: Gris fosc amb 50% de transparència
+            background_color = 'rgba(108, 117, 125, 0.5)' 
+            border_color = 'rgba(108, 117, 125, 0.8)'
+            text_color = '#495057' # Text gris fosc per contrastar amb el fons translúcid
+            
+        elif r.estat == 'rebutjada':
+            background_color = 'rgba(220, 53, 69, 0.2)' # Vermell molt tènue
+            border_color = '#dc3545'
+            text_color = '#dc3545'
+
+        events.append({
+            'id': r.id,
+            'title': titol,
+            'start': r.inici.isoformat(),
+            'end': r.final.isoformat(),
+            'backgroundColor': background_color,
+            'borderColor': border_color,
+            'textColor': text_color,
+            'extendedProps': {
+                'instalacio': r.instalacio.nom,
+                'estat': r.estat
+            }
+        })
+    return JsonResponse(events, safe=False)
 # 9. CONTEXT PROCESSOR / UTILITATS
 def comptador_pendents(request):
     if request.user.is_authenticated and request.user.is_staff:
@@ -350,3 +436,76 @@ def pistes(request):
     
     # IMPORTAT: Aquí carreguem directament la plantilla de les pistes
     return render(request, 'reservescorbera/calendari_instalacions.html', context)
+
+    from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+
+@staff_member_required
+@require_POST
+def accio_reserva(request):
+    reserva_id = request.POST.get('id')
+    accio = request.POST.get('accio')
+    reserva = get_object_or_404(Reserva, id=reserva_id)
+
+    if accio == 'eliminar':
+        reserva.delete()
+    elif accio == 'editar':
+        nou_titol = request.POST.get('titol')
+        nou_estat = request.POST.get('estat')
+        if nou_titol: reserva.activitat = nou_titol
+        if nou_estat: reserva.estat = nou_estat
+        reserva.save()
+
+    # Recalculem el total de pendents per actualitzar la campaneta
+    num_pendents = Reserva.objects.filter(estat='pendent').count()
+
+    return JsonResponse({
+        'status': 'ok',
+        'msg': 'Operació realitzada',
+        'num_pendents': num_pendents,
+        'estat_final': reserva.estat,
+        'reserva': { # Enviem dades per si hem de "tornar a crear" la targeta
+            'id': reserva.id,
+            'activitat': reserva.activitat,
+            'inici': reserva.inici.strftime('%H:%M'),
+            'final': reserva.final.strftime('%H:%M'),
+            'data': reserva.inici.strftime('%d/%m'),
+            'entitat': reserva.entitat.username,
+            'instalacio': reserva.instalacio.nom,
+            'color': reserva.instalacio.color or '#d4af37'
+        }
+    })
+
+
+@login_required
+def perfil(request):
+    # Preparem els dos formularis buits o amb les dades actuals de l'usuari
+    perfil_form = UserProfileForm(instance=request.user)
+    password_form = PasswordChangeForm(request.user)
+
+    if request.method == 'POST':
+        # CAS A: L'usuari vol canviar el CORREU
+        if 'btn_perfil' in request.POST:
+            perfil_form = UserProfileForm(request.POST, instance=request.user)
+            if perfil_form.is_valid():
+                perfil_form.save()
+                messages.success(request, 'Correu actualitzat correctament!')
+                return redirect('perfil')
+
+        # CAS B: L'usuari vol canviar la CONTRASENYA
+        elif 'btn_password' in request.POST:
+            password_form = PasswordChangeForm(request.user, request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                # Aquesta línia és vital: evita que l'usuari sigui expulsat de la sessió en canviar la pass
+                update_session_auth_hash(request, user)
+                messages.success(request, 'Contrasenya actualitzada correctament!')
+                return redirect('perfil')
+            else:
+                messages.error(request, 'Si us plau, corregeix els errors de la contrasenya.')
+
+    # Enviem els dos formularis al template
+    return render(request, 'reservescorbera/perfil.html', {
+        'perfil_form': perfil_form,
+        'password_form': password_form
+    })

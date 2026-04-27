@@ -30,7 +30,8 @@ urlpatterns = [
     # Gestió d'usuaris
     path('gestio-tecnica/nou-usuari/', views.crear_usuari, name='crear_usuari'),
     path('gestio-tecnica/eliminar-usuari/<int:pk>/', views.eliminar_usuari, name='eliminar_usuari'),
-    
+    path('accio-reserva/', views.accio_reserva, name='accio_reserva'),
+    path('perfil/', views.perfil, name='perfil'),
     # APIs
     path('api/reserves/', views.api_reserves, name='api_reserves'),
     path('api/hores-ocupades/', views.api_hores_ocupades, name='api_hores_ocupades'),

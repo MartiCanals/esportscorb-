@@ -36,7 +36,6 @@
         .back-link { display: inline-flex; align-items: center; color: var(--accent); text-decoration: none; font-weight: 600; margin-bottom: 20px; }
         .back-link:hover { color: white; }
 
-        /* GRID DE TARGETES */
         .inst-card {
             background: white; border: none; border-radius: 15px; overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.08); transition: all 0.3s ease;
@@ -64,12 +63,9 @@
         }
         .btn-reserve:hover { background: var(--accent); color: var(--primary); }
 
-        /* MODAL */
         .modal-content { border-radius: 20px; border: none; }
         .modal-header { background: var(--primary); color: white; border-bottom: 3px solid var(--accent); }
         .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
-        
-        .form-label { color: var(--primary); font-size: 0.9rem; margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -104,7 +100,6 @@
                                 </span>
                             </div>
                         </div>
-                        
                         <button class="btn-reserve" 
                             onclick="obrirModalReserva('{{ inst.id }}', '{{ inst.nom }}', '{{ inst.hora_obertura|time:'H:i' }}', '{{ inst.hora_tancament|time:'H:i' }}')">
                             <i class="bi bi-calendar-check me-2"></i> Reservar ara
@@ -130,7 +125,6 @@
                         <label class="form-label fw-bold">1. Què faràs? (Nom de l'activitat):</label>
                         <input type="text" id="nomActivitat" class="form-control form-control-lg" 
                                placeholder="Ex: Entrenament Juvenil A" onkeyup="validarSeleccio()">
-                        <div class="form-text">Aquest nom apareixerà al calendari públic.</div>
                     </div>
 
                     <div class="mb-4">
@@ -151,13 +145,11 @@
                                 <select id="selectFinal" class="form-select form-select-lg" onchange="validarSeleccio()"></select>
                             </div>
                         </div>
-                        <div id="infoHorariPista" class="mt-3 small text-muted text-center italic"></div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel·lar</button>
-                    <button type="button" id="btnFinalitzar" class="btn btn-dark px-4" disabled onclick="enviarReserva()" 
-                        style="background: var(--primary); color: var(--accent); border: 1px solid var(--accent);">
+                    <button type="button" id="btnFinalitzar" class="btn btn-dark px-4" disabled onclick="enviarReserva()">
                         CONFIRMAR RESERVA
                     </button>
                 </div>
@@ -166,11 +158,30 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
         let idSeleccionat = null;
         let hObertura = "";
         let hTancament = "";
-        const modal = new bootstrap.Modal(document.getElementById('modalReserva'));
+        let horesOcupadesActuals = [];
+        let modalReserva;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            modalReserva = new bootstrap.Modal(document.getElementById('modalReserva'));
+
+            // MOSTRAR MISSATGES DE BACKEND (DJango Messages)
+            {% if messages %}
+                {% for message in messages %}
+                    Swal.fire({
+                        icon: "{% if message.tags == 'success' %}success{% else %}error{% endif %}",
+                        title: "{{ message }}",
+                        confirmButtonColor: '#d4af37',
+                        timer: 3500
+                    });
+                {% endfor %}
+            {% endif %}
+        });
 
         function obrirModalReserva(id, nom, obertura, tancament) {
             idSeleccionat = id;
@@ -178,12 +189,12 @@
             hTancament = tancament || "22:00";
             
             document.getElementById('nomInstalacioModal').innerText = nom;
-            document.getElementById('nomActivitat').value = ''; // Reset nom
+            document.getElementById('nomActivitat').value = ''; 
             document.getElementById('dataReserva').value = '';
             document.getElementById('seccioHores').style.display = 'none';
-            document.getElementById('infoHorariPista').innerText = `Horari de la pista: ${hObertura}h a ${hTancament}h`;
             document.getElementById('btnFinalitzar').disabled = true;
-            modal.show();
+            
+            modalReserva.show();
         }
 
         async function buscarHoresDisponibles() {
@@ -193,44 +204,61 @@
             document.getElementById('seccioHores').style.display = 'block';
             
             try {
-                const response = await fetch(`/api/hores-ocupades/?instalacio=${idSeleccionat}&data=${data}`);
+                const response = await fetch(`/api/hores-ocupades/?instalacio=${idSeleccionat}&data=${data}&t=${new Date().getTime()}`);
                 const ocupades = await response.json(); 
-                poblarSelects(ocupades);
-                validarSeleccio(); // Per si canvien la data mantenint hores
+                horesOcupadesActuals = ocupades.map(h => h.trim());
+                poblarSelects();
             } catch (error) {
                 console.error("Error carregant hores:", error);
             }
         }
 
-        function poblarSelects(ocupades) {
+        function poblarSelects() {
             const selectInici = document.getElementById('selectInici');
             const selectFinal = document.getElementById('selectFinal');
             
-            const prevInici = selectInici.value;
-            const prevFinal = selectFinal.value;
-
+            // Netegem ambdós selectors
             selectInici.innerHTML = '<option value="">Inici...</option>';
             selectFinal.innerHTML = '<option value="">Final...</option>';
+            selectFinal.disabled = true; // Deshabilitem el final fins que triïn l'inici
 
             let [hO, mO] = hObertura.split(':').map(Number);
             let [hT, mT] = hTancament.split(':').map(Number);
             let iniciMinuts = hO * 60 + mO;
             let tancamentMinuts = hT * 60 + mT;
 
-            for (let minuts = iniciMinuts; minuts <= tancamentMinuts; minuts += 15) {
-                let h = Math.floor(minuts / 60).toString().padStart(2, '0');
-                let m = (minuts % 60).toString().padStart(2, '0');
+            // 1. Omplim NOMÉS el selector d'INICI (fins a 15 min abans del tancament)
+            for (let min = iniciMinuts; min < tancamentMinuts; min += 15) {
+                let h = Math.floor(min / 60).toString().padStart(2, '0');
+                let m = (min % 60).toString().padStart(2, '0');
                 let horaStr = `${h}:${m}`;
+                selectInici.add(new Option(horaStr, horaStr));
+            }
 
-                if (!ocupades.includes(horaStr)) {
-                    selectInici.add(new Option(horaStr, horaStr));
+            // 2. Quan l'usuari canviï l'hora d'inici, generem les hores finals possibles
+            selectInici.onchange = function() {
+                const iniciTriat = this.value;
+                selectFinal.innerHTML = '<option value="">Final...</option>';
+                
+                if (!iniciTriat) {
+                    selectFinal.disabled = true;
+                    validarSeleccio();
+                    return;
+                }
+
+                selectFinal.disabled = false;
+                let [hI, mI] = iniciTriat.split(':').map(Number);
+                let iniciTriatMinuts = hI * 60 + mI;
+
+                // Comencem el bucle 15 minuts DESPRÉS de l'inici triat
+                for (let min = iniciTriatMinuts + 15; min <= tancamentMinuts; min += 15) {
+                    let h = Math.floor(min / 60).toString().padStart(2, '0');
+                    let m = (min % 60).toString().padStart(2, '0');
+                    let horaStr = `${h}:${m}`;
                     selectFinal.add(new Option(horaStr, horaStr));
                 }
-            }
-            
-            // Re-seleccionar si encara són vàlides
-            selectInici.value = prevInici;
-            selectFinal.value = prevFinal;
+                validarSeleccio();
+            };
         }
 
         function validarSeleccio() {
@@ -238,14 +266,11 @@
             const inici = document.getElementById('selectInici').value;
             const final = document.getElementById('selectFinal').value;
             const btn = document.getElementById('btnFinalitzar');
-
-            // Habilitem només si hi ha NOM + HORA INICI + HORA FINAL + FINAL > INICI
-            if (nom.length > 2 && inici && final && inici < final) {
-                btn.disabled = false;
-            } else {
-                btn.disabled = true;
-            }
+            
+            // El botó només s'habilita si tot està omplert correctament
+            btn.disabled = !(nom.length > 2 && inici && final);
         }
+
 
         function enviarReserva() {
             const nom = document.getElementById('nomActivitat').value.trim();
@@ -253,9 +278,49 @@
             const inici = document.getElementById('selectInici').value;
             const final = document.getElementById('selectFinal').value;
             
-            // Construïm la URL amb tots els paràmetres, incloent el nom de l'activitat
-            const url = `/reserva/${idSeleccionat}/?data=${data}&hora_inici=${inici}&hora_fi=${final}&nom_activitat=${encodeURIComponent(nom)}`;
+            let [hI, mI] = inici.split(':').map(Number);
+            let [hF, mF] = final.split(':').map(Number);
+            let minInici = hI * 60 + mI;
+            let minFinal = hF * 60 + mF;
+
+            // 1. Validació de sentit comú
+            if (minFinal <= minInici) {
+                Swal.fire({ icon: 'error', title: 'Horari no vàlid', text: 'L\'hora final ha de ser posterior a la d\'inici.' });
+                return;
+            }
+
+            // 2. VALIDACIÓ DE SOLAPAMENT INTEL·LIGENT
+            let hiHaSolapament = false;
+            let horaTrebujada = "";
+
+            /* IMPORTANT: L'API et retorna les franges de 15 minuts que estan "ocupades".
+            Si una reserva és de 15:00 a 15:15, l'API només hauria de tenir ocupat el bloc "15:00".
+            Si tu vols reservar de 15:15 a 15:30, el teu bucle mirarà el bloc "15:15".
+            Com que "15:15" NO està a la llista de la reserva anterior, et deixarà passar.
+            */
             
+            for (let m = minInici; m < minFinal; m += 15) {
+                let h = Math.floor(m / 60).toString().padStart(2, '0');
+                let min = (m % 60).toString().padStart(2, '0');
+                let check = `${h}:${min}`;
+
+                if (horesOcupadesActuals.includes(check)) {
+                    hiHaSolapament = true;
+                    horaTrebujada = check;
+                    break;
+                }
+            }
+
+            if (hiHaSolapament) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Franja no disponible',
+                    text: `L'interval triat trepitja una reserva existent a les ${horaTrebujada}.`
+                });
+                return;
+            }
+
+            const url = `/reserva/${idSeleccionat}/?data=${data}&hora_inici=${inici}&hora_fi=${final}&nom_activitat=${encodeURIComponent(nom)}`;
             window.location.href = url;
         }
     </script>

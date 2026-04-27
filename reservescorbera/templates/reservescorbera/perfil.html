@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil - EsportsCorb</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --accent: #ffc107; /* El daurat/groc de la teva app */
+            --text-color: #e0e0e0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Recreem el teu Top Bar */
+        #top-bar {
+            background-color: #000;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--accent);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        #top-bar h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            color: white;
+            font-weight: bold;
+        }
+
+        #top-bar h1 span {
+            color: var(--accent);
+        }
+
+        .user-nav {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-icon-link {
+            color: var(--text-color);
+            font-size: 1.2rem;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .nav-icon-link:hover {
+            color: var(--accent);
+        }
+
+        /* Estils de les targetes de perfil */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid #333;
+            border-radius: 15px;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            color: var(--accent);
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .form-control {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+        }
+
+        .form-control:focus {
+            background-color: #333;
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            border: none;
+            color: black;
+            font-weight: bold;
+        }
+
+        .btn-primary:hover {
+            background-color: #e5ac00;
+            color: black;
+        }
+
+        .alert {
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header id="top-bar">
+        <h1>Esports<span>Corb</span></h1>
+        <div class="user-nav">
+            <a href="{% url 'inici' %}" class="nav-icon-link" title="Tornar al Calendari">
+                <i class="bi bi-calendar3"></i>
+            </a>
+            <span class="d-none d-md-inline ms-2">Hola, <strong>{{ user.username }}</strong></span>
+            
+            <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-link nav-link p-0 text-white text-decoration-none">
+                    <i class="bi bi-box-arrow-right"></i> Sortir
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-5">
+                
+                <h2 class="mb-4"><i class="bi bi-person-gear me-2"></i>Configuració</h2>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{% if message.tags == 'success' %}success{% else %}danger{% endif %} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <div class="card shadow">
+                    <div class="card-body p-4">
+                        <h5 class="card-title mb-3">Dades Personals</h5>
+                        <form method="POST">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label class="form-label text-secondary small">Correu electrònic</label>
+                                {{ perfil_form.email }}
+                            </div>
+                            <button type="submit" name="btn_perfil" class="btn btn-primary w-100">Guardar Correu</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card shadow">
+                    <div class="card-body p-4">
+                        <h5 class="card-title mb-3">Seguretat</h5>
+                        <form method="POST">
+                            {% csrf_token %}
+                            {% for field in password_form %}
+                                <div class="mb-3">
+                                    <label class="form-label text-secondary small">{{ field.label }}</label>
+                                    <input type="{{ field.field.widget.input_type }}" 
+                                           name="{{ field.html_name }}" 
+                                           class="form-control" 
+                                           required>
+                                    {% if field.help_text %}
+                                        <div class="form-text text-muted small" style="font-size: 0.7rem;">{{ field.help_text|safe }}</div>
+                                    {% endif %}
+                                    {% if field.errors %}
+                                        <div class="text-danger small mt-1">{{ field.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                            <button type="submit" name="btn_password" class="btn btn-outline-warning w-100">Actualitzar Contrasenya</button>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

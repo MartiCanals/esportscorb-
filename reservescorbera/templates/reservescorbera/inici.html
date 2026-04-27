@@ -17,7 +17,7 @@
             --bg: #f8f9fa;
         }
 
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; overflow-x: hidden; }
 
         /* NAVBAR SUPERIOR */
         #top-bar { 
@@ -30,33 +30,12 @@
 
         .user-nav { display: flex; align-items: center; gap: 15px; }
 
-        /* BOTONS D'ICONA (Dalt a la dreta) */
         .nav-icon-link { 
-            position: relative; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            color: var(--accent);
+            position: relative; display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px; transition: all 0.2s ease; text-decoration: none; color: var(--accent);
         }
-        
-        /* El de configuració que sí que funciona */
-        .nav-icon-link.active-link:hover { 
-            background: rgba(212, 175, 55, 0.2); 
-            transform: translateY(-2px);
-            color: white;
-        }
-
-        /* El de notificacions que no porta a enlloc */
-        .nav-icon-link.no-click {
-            cursor: default;
-            opacity: 0.8;
-        }
+        .nav-icon-link:hover { background: rgba(212, 175, 55, 0.2); transform: translateY(-2px); color: white; }
 
         .badge-notify {
             position: absolute; top: -5px; right: -5px; 
@@ -64,15 +43,6 @@
             background-color: #ff4d4d; border: 2px solid var(--primary);
             font-weight: 800;
         }
-
-        .btn-logout { 
-            border: 1px solid rgba(255, 77, 77, 0.4); 
-            background: transparent; color: #ff4d4d; 
-            padding: 6px 15px; border-radius: 6px; 
-            font-size: 0.75rem; font-weight: bold; 
-            text-transform: uppercase; transition: 0.2s;
-        }
-        .btn-logout:hover { background: #ff4d4d; color: white; }
 
         /* BARRA D'ACCIONS */
         .action-bar { 
@@ -87,77 +57,172 @@
             font-weight: 800; border: 2px solid var(--accent);
             text-transform: uppercase; transition: 0.3s;
         }
-        .btn-reserve-main:hover { background: var(--accent); color: var(--primary); transform: scale(1.02); }
 
         .custom-select {
             width: 300px; padding: 8px 12px; border: 2px solid #ddd; 
             border-radius: 8px; font-weight: 600;
         }
 
-        .container { padding: 30px; }
+        /* TRANSICIONS PER AL MODE GESTIÓ */
+        .transition-all { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .container-fluid { padding: 30px; }
         #calendar { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+
+        /* ESTILS NOTIFICACIONS LATERALS */
+        #col-notificacions { max-height: 85vh; overflow-y: auto; padding-bottom: 50px; }
+        .card-noti { border: none; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: 0.3s; background: white; }
+        .card-noti:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
 
     <header id="top-bar">
         <h1>Esports<span>Corb</span></h1>
-    
         <div class="user-nav">
             {% if user.is_staff %}
-              <a href="{% url 'llista_pendents' %}" class="nav-icon-link active-link" title="Notificacions Pendents">
-                 <i class="bi bi-bell-fill"></i>
-                 {% if num_pendents > 0 %}
-                 <span class="badge rounded-pill badge-notify">{{ num_pendents }}</span>
-                 {% endif %}
-             </a>
-
-            <a href="{% url 'gestionar_reserves' %}" class="nav-icon-link active-link" title="Gestió Tècnica">
+            <a href="{% url 'llista_pendents' %}" class="nav-icon-link" title="Anar a la llista completa">
+                <i class="bi bi-bell-fill"></i>
+                {% if num_pendents > 0 %}
+                <span class="badge rounded-pill badge-notify">{{ num_pendents }}</span>
+                {% endif %}
+            </a>
+            <a href="{% url 'gestionar_reserves' %}" class="nav-icon-link" title="Gestió Tècnica">
                 <i class="bi bi-gear-fill"></i>
             </a>
-              {% endif %}
+            {% endif %}
 
-        <span class="d-none d-md-inline ms-2" style="font-size: 0.9rem;">Hola, <strong>{{ user.username }}</strong></span>
-        
-        <form action="{% url 'logout' %}" method="post" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit" class="btn btn-link nav-link" style="display:inline; padding:0; color:inherit; text-decoration:none;">
-        <i class="bi bi-box-arrow-right"></i> Sortir
-    </button>
-</form>
-    </div>
-</header>
+            <a href="{% url 'perfil' %}" class="nav-icon-link" title="Configuració del perfil">
+                <i class="bi bi-person-circle"></i>
+            </a>
+
+            <span class="d-none d-md-inline ms-2" style="font-size: 0.9rem;">Hola, <strong>{{ user.username }}</strong></span>
+            
+            <form action="{% url 'logout' %}" method="post" style="display:inline;" class="ms-2">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-link nav-link" style="display:inline; padding:0; color:inherit; text-decoration:none;">
+                    <i class="bi bi-box-arrow-right"></i> Sortir
+                </button>
+            </form>
+        </div>
+    </header>
 
     <div class="action-bar">
         <a href="{% url 'calendari_instalacions' %}" class="btn-reserve-main">
             🕒 FER UNA RESERVA 🕒
         </a>
         
-        <div class="d-flex align-items-center gap-2">
-            <span style="font-weight: 700; font-size: 0.8rem; color: #555; text-transform: uppercase;">Filtre ràpid:</span>
-            <select class="custom-select" id="selector-instalacio" onchange="filtrarPerDesplegable(this.value)">
-                <option value="tots">--- TOTES LES INSTAL·LACIONS ---</option>
-                {% for inst in instalacions %}
-                    <option value="{{ inst.nom|lower }}">{{ inst.nom }}</option>
-                {% endfor %}
-            </select>
+        <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2">
+                <span style="font-weight: 700; font-size: 0.8rem; color: #555; text-transform: uppercase;">Filtre:</span>
+                <select class="custom-select" id="selector-instalacio" onchange="filtrarPerDesplegable(this.value)">
+                    <option value="tots">--- TOTES LES INSTAL·LACIONS ---</option>
+                    {% for inst in instalacions %}
+                        <option value="{{ inst.nom|lower }}">{{ inst.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if user.is_staff %}
+            <button id="btn-toggle-gestio" class="btn fw-bold shadow-sm" style="background: var(--primary); color: var(--accent); border: 2px solid var(--accent); border-radius: 8px; font-size: 0.8rem;">
+                <i class="bi bi-layout-sidebar-inset-reverse me-1"></i> MODE GESTIÓ
+            </button>
+            {% endif %}
         </div>
     </div>
 
-    <div class="container">
-        <div id='calendar'></div>
+    <div class="container-fluid">
+        <div class="row g-4">
+            <div id="col-calendari" class="col-12 transition-all">
+                <div id='calendar'></div>
+            </div>
+
+            {% if user.is_staff %}
+            <div id="col-notificacions" class="col-md-3 d-none transition-all">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold m-0"><i class="bi bi-lightning-charge-fill text-warning"></i> PENDENTS</h5>
+                    <span class="badge bg-dark" style="color:var(--accent)">{{ num_pendents }}</span>
+                </div>
+                
+                {% for r in pendents %}
+                <div id="reserva-lateral-{{ r.id }}" class="card card-noti mb-3" style="border-left: 5px solid {{ r.instalacio.color|default:'#d4af37' }};">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge" style="background: {{ r.instalacio.color|default:'#1a1a1a' }}; font-size: 0.65rem;">{{ r.instalacio.nom }}</span>
+                            <small class="text-muted fw-bold">{{ r.inici|date:"d/m" }}</small>
+                        </div>
+                        <h6 class="fw-bold mb-1" style="font-size: 0.85rem;">{{ r.activitat }}</h6>
+                        <p class="small text-muted mb-3" style="line-height: 1.2;">
+                            {{ r.inici|time:"H:i" }} - {{ r.final|time:"H:i" }}<br>
+                            <span class="text-dark fw-bold">{{ r.entitat.username }}</span>
+                        </p>
+                        
+                        <div class="d-flex gap-1">
+                            <button onclick="enviarAccioReserva('{{ r.id }}', 'editar', { estat: 'validada' })" class="btn btn-sm btn-success flex-grow-1 fw-bold" style="font-size: 0.7rem;">APROVAR</button>
+                            <button onclick="enviarAccioReserva('{{ r.id }}', 'editar', { estat: 'rebutjada' })" class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-x"></i></button>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-5 bg-white rounded-3 shadow-sm">
+                    <i class="bi bi-check-all display-4 text-success opacity-50"></i>
+                    <p class="small fw-bold text-muted mt-2">No hi ha cap reserva pendent</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
     </div>
 
     <script>
         let calendar;
+
+        // Funció per obrir el lateral
+        function obrirLateral() {
+            const colCal = document.getElementById('col-calendari');
+            const colNoti = document.getElementById('col-notificacions');
+            const btnGestio = document.getElementById('btn-toggle-gestio');
+            
+            if (colCal && colNoti) {
+                colCal.classList.replace('col-12', 'col-md-9');
+                colNoti.classList.remove('d-none');
+                if (btnGestio) {
+                    btnGestio.style.background = "var(--accent)";
+                    btnGestio.style.color = "var(--primary)";
+                    btnGestio.innerHTML = '<i class="bi bi-layout-sidebar-inset"></i> TANCAR GESTIÓ';
+                }
+                setTimeout(() => { if(calendar) calendar.updateSize(); }, 500);
+            }
+        }
+
+        // Funció per tancar el lateral
+        function tancarLateral() {
+            const colCal = document.getElementById('col-calendari');
+            const colNoti = document.getElementById('col-notificacions');
+            const btnGestio = document.getElementById('btn-toggle-gestio');
+            
+            if (colCal && colNoti) {
+                colCal.classList.replace('col-md-9', 'col-12');
+                colNoti.classList.add('d-none');
+                if (btnGestio) {
+                    btnGestio.style.background = "var(--primary)";
+                    btnGestio.style.color = "var(--accent)";
+                    btnGestio.innerHTML = '<i class="bi bi-layout-sidebar-inset-reverse"></i> MODE GESTIÓ';
+                }
+                setTimeout(() => { if(calendar) calendar.updateSize(); }, 500);
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
             calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek',
                 locale: 'ca',
+                allDaySlot: false,
                 firstDay: 1,
+                height: 650,
                 slotMinTime: '07:00:00',
                 slotMaxTime: '23:30:00',
+                expandRows: true,
                 headerToolbar: { 
                     left: 'prev,next today', 
                     center: 'title', 
@@ -166,16 +231,194 @@
                 buttonText: { today: 'Avui', month: 'Mes', week: 'Setmana', day: 'Dia' },
                 events: '/api/reserves/',
                 eventClick: function(info) {
+                    const esTecnic = "{{ user.is_staff }}" === "True";
+                    const reservaId = info.event.id;
+                    const titolActual = info.event.title;
+                    // Agafem l'estat des de extendedProps
+                    const estatActual = info.event.extendedProps.estat;
+
+                    if (!esTecnic) {
+                        Swal.fire({
+                            title: info.event.extendedProps.instalacio || "Reserva",
+                            text: titolActual,
+                            confirmButtonColor: '#d4af37'
+                        });
+                        return;
+                    }
+
                     Swal.fire({
-                        title: info.event.extendedProps.instalacio || "Reserva",
-                        text: info.event.title,
-                        confirmButtonColor: '#d4af37'
+                        title: 'GESTIONAR RESERVA',
+                        html: `
+                            <div class="text-start">
+                                <label class="small fw-bold">Nom de l'activitat:</label>
+                                <input id="swal-titol" class="form-control mb-3" value="${titolActual}">
+                                <label class="small fw-bold">Estat:</label>
+                                <select id="swal-estat" class="form-select">
+                                    <option value="pendent" ${estatActual === 'pendent' ? 'selected' : ''}>Pendent</option>
+                                    <option value="validada" ${estatActual === 'validada' ? 'selected' : ''}>Validada</option>
+                                    <option value="anul·lada" ${estatActual === 'rebutjada' ? 'selected' : ''}>Rebutjada</option>
+                                </select>
+                            </div>
+                        `,
+                        showCancelButton: true,
+                        showDenyButton: true,
+                        confirmButtonText: '<i class="bi bi-save"></i> Guardar',
+                        denyButtonText: '<i class="bi bi-trash"></i> Eliminar',
+                        cancelButtonText: 'Cancel·lar',
+                        confirmButtonColor: '#198754',
+                        denyButtonColor: '#dc3545',
+                        // AQUESTA PART ÉS LA QUE SEGURAMENT ET FALTA:
+                        preConfirm: () => {
+                            return {
+                                titol: document.getElementById('swal-titol').value,
+                                estat: document.getElementById('swal-estat').value
+                            }
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Ara result.value conté l'objecte amb el titol i l'estat recollits pel preConfirm
+                            enviarAccioReserva(reservaId, 'editar', { 
+                                titol: result.value.titol, 
+                                estat: result.value.estat 
+                            });
+                        } else if (result.isDenied) {
+                            Swal.fire({
+                                title: 'Segur?',
+                                text: "Esborraràs aquesta reserva definitivament",
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonText: 'Sí, esborra'
+                            }).then((res) => {
+                                if(res.isConfirmed) enviarAccioReserva(reservaId, 'eliminar');
+                            });
+                        }
                     });
-                }
+                },
             });
             calendar.render();
+
+            // Mantenir obert si venim d'una acció (gestio=1 a la URL)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('gestio') === '1') {
+                obrirLateral();
+            }
+
+            // Lògica del botó de clic manual
+            const btnGestio = document.getElementById('btn-toggle-gestio');
+            if(btnGestio) {
+                btnGestio.addEventListener('click', function() {
+                    const colNoti = document.getElementById('col-notificacions');
+                    if(colNoti.classList.contains('d-none')) {
+                        obrirLateral();
+                    } else {
+                        tancarLateral();
+                        // Netegem la URL per si estava el gestio=1
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                });
+            }
+            if (localStorage.getItem('sidebarObert') === 'true') {
+                obrirLateral();
+                // La netegem perquè no s'obri sempre per defecte en el futur
+                localStorage.removeItem('sidebarObert');
+            }
+
         });
 
+        // ... (el teu codi anterior del calendari es manté igual) ...
+
+        // --- AQUESTA FUNCIÓ ÉS LA QUE T'FALTA ---
+        function enviarAccioReserva(id, accio, dadesExtras = {}) {
+            const formData = new FormData();
+            formData.append('id', id);
+            formData.append('accio', accio);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            for (const clau in dadesExtras) {
+                formData.append(clau, dadesExtras[clau]);
+            }
+
+            fetch("{% url 'accio_reserva' %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    // 1. Actualitzar el calendari
+                    calendar.refetchEvents(); 
+
+                    // 2. Actualitzar els contadors (Campaneta i títol lateral)
+                    actualitzarContadors(data.num_pendents);
+
+                    // 3. Gestionar la targeta lateral
+                    const colNotificacions = document.querySelector('#col-notificacions');
+                    const targetaExistent = document.getElementById(`reserva-lateral-${id}`);
+
+                    if (data.estat_final === 'pendent') {
+                        // Si ha passat a pendent i no la teníem, la creem
+                        if (!targetaExistent) {
+                            afegirTargetaLateral(data.reserva);
+                        }
+                    } else {
+                        // Si ja no és pendent, l'esborrem amb una animació
+                        if (targetaExistent) {
+                            targetaExistent.style.opacity = '0';
+                            setTimeout(() => targetaExistent.remove(), 300);
+                        }
+                    }
+
+                    Swal.fire({ title: 'Actualitzat', icon: 'success', timer: 800, showConfirmButton: false });
+                }
+            });
+        }
+
+        function actualitzarContadors(total) {
+            const badges = document.querySelectorAll('.badge-notify, .badge.bg-dark');
+            badges.forEach(b => {
+                b.innerText = total;
+                b.style.display = total > 0 ? 'inline-block' : 'none';
+            });
+        }
+
+        function afegirTargetaLateral(r) {
+            const llista = document.getElementById('col-notificacions');
+            if (!llista) return;
+
+            // Creem el HTML de la targeta (igual que el tenies al Django template)
+            const html = `
+                <div id="reserva-lateral-${r.id}" class="card card-noti mb-3" style="border-left: 5px solid ${r.color}; opacity: 0; transition: all 0.4s;">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge" style="background: ${r.color}; font-size: 0.65rem;">${r.instalacio}</span>
+                            <small class="text-muted fw-bold">${r.data}</small>
+                        </div>
+                        <h6 class="fw-bold mb-1" style="font-size: 0.85rem;">${r.activitat}</h6>
+                        <p class="small text-muted mb-3" style="line-height: 1.2;">
+                            ${r.inici} - ${r.final}<br>
+                            <span class="text-dark fw-bold">${r.entitat}</span>
+                        </p>
+                        <div class="d-flex gap-1">
+                            <button onclick="enviarAccioReserva('${r.id}', 'editar', { estat: 'validada' })" class="btn btn-sm btn-success flex-grow-1 fw-bold" style="font-size: 0.7rem;">APROVAR</button>
+                            <button onclick="enviarAccioReserva('${r.id}', 'editar', { estat: 'rebutjada' })" class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-x"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // La posem al principi de la llista
+            const divContenidor = llista.querySelector('.card-noti')?.parentNode || llista;
+            llista.insertAdjacentHTML('beforeend', html);
+            
+            // Animació d'entrada
+            setTimeout(() => {
+                const nova = document.getElementById(`reserva-lateral-${r.id}`);
+                if(nova) nova.style.opacity = '1';
+            }, 10);
+        }
+
+        // Funció de filtre (la que ja tenies)
         function filtrarPerDesplegable(valor) {
             const cerca = valor.toLowerCase().trim();
             calendar.getEvents().forEach(ev => {
@@ -187,6 +430,22 @@
                 }
             });
         }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            {% if messages %}
+                {% for message in messages %}
+                    Swal.fire({
+                        icon: "{% if message.tags == 'success' %}success{% else %}error{% endif %}",
+                        title: "{{ message }}",
+                        confirmButtonColor: '#d4af37',
+                        timer: 3500 // Es tanca sol als 3.5 segons
+                    });
+                {% endfor %}
+            {% endif %}
+        });
     </script>
 </body>
 </html>
