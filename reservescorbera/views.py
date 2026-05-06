@@ -302,23 +302,22 @@ from .models import Reserva, ActivitatExtra  # Assegura't d'importar el nou mode
 
 def api_reserves(request):
     es_staff = request.user.is_authenticated and request.user.is_staff
-    es_conserge = request.user.groups.filter(name="Conserge").exists()
+    # Check de grup segur per a usuaris anònims
+    es_conserge = request.user.is_authenticated and request.user.groups.filter(name="Conserge").exists()
 
-    # Filtre de reserves (Això està bé)
+    # 1. FILTRE DE RESERVES (Aquí apliquem la seguretat)
     if es_staff:
         reserves = Reserva.objects.all()
     else:
-        reserves = Reserva.objects.filter(estat='validada')
+        # Pels usuaris públics: només validades I que NO siguin de conserge
+        reserves = Reserva.objects.filter(estat='validada').exclude(activitat__icontains='CONSERGE')
     
     events = []
 
     # 1. RESERVES DE PISTES
     for r in reserves:
-        # Fem servir un try/except intern perquè si una reserva té un error, 
-        # no s'aturi tot el calendari
         try:
             color_base = r.instalacio.color or '#d4af37'
-            # ... (el teu codi de colors està perfecte)
             
             events.append({
                 'id': r.id,
@@ -337,28 +336,29 @@ def api_reserves(request):
         except Exception as e:
             print(f"Error en reserva {r.id}: {e}")
 
-    # 2. ACTIVITATS EXTRA (Aquí és on peta per l'Staff)
-    if es_staff or es_conserge:
+    # 2. ACTIVITATS EXTRA (Avisos daurats)
+    # He mogut això FORA de l'if es_staff perquè vols que el públic vegi els avisos de manteniment, etc.
+    # Però només si l'usuari és staff/conserge o si vols que siguin públiques. 
+    # Si vols que les Activitats Extra siguin PÚBLIQUES, treu el "if es_staff or es_conserge:"
+    
+    if es_staff or es_conserge: # Canvia aquesta condició si vols que les extres siguin públiques
         try:
             activitats_extra = ActivitatExtra.objects.all()
             for act in activitats_extra:
-                # Validem que tingui data i hores per evitar errors de format
                 if act.data and act.inici and act.final:
                     events.append({
                         'id': f"extra-{act.id}",
                         'title': act.titol,
-                        # Fem servir f-strings segurs
                         'start': f"{act.data.strftime('%Y-%m-%d')}T{act.inici.strftime('%H:%M:%S')}",
                         'end': f"{act.data.strftime('%Y-%m-%d')}T{act.final.strftime('%H:%M:%S')}",
-                        'backgroundColor': '#2c3e50', # Color fosc per diferenciar-ho
-                        'textColor': '#ffffff',
+                        'backgroundColor': '#d4af37', # Color daurat per a les extres
+                        'textColor': '#1a1a1a',
                         'extendedProps': {
-                            'tipus': 'extra'
+                            'tipus': 'extra',
+                            'instalacio': 'AVÍS GLOBAL'
                         }
                     })
         except Exception as e:
-            # Si la taula ActivitatExtra no existeix o falla, 
-            # imprimim l'error a la consola però EL CALENDARI SEGUIRÀ MOSTRANT LES RESERVES
             print(f"Error carregant Activitats Extra: {e}")
 
     return JsonResponse(events, safe=False)
