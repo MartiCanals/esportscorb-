@@ -1,0 +1,351 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestió de Plantilla - EsportsCorb</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            --primary: #1a1a1a;
+            --accent: #d4af37;
+            --bg: #f8f9fa;
+        }
+
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: var(--bg); 
+            margin: 0;
+            color: var(--primary);
+        }
+
+        /* NAVBAR ESTIL APP */
+        .navbar-custom { 
+            background: var(--primary); 
+            padding: 12px 30px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .navbar-brand { 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            color: white !important;
+            font-size: 1.2rem;
+        }
+        .navbar-brand span { color: var(--accent); }
+
+        /* TÍTOLS DE SECCIÓ AMB COLOR DINÀMIC */
+        .inst-section-title { 
+            border-left: 10px solid; /* El color es posarà via style inline */
+            padding-left: 15px; 
+            margin: 40px 0 20px 0; 
+            font-weight: 800; 
+            text-transform: uppercase;
+            color: var(--primary);
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* CONTENIDOR CALENDARI */
+        .calendar-container { 
+            background: white; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+            border: none;
+            margin-bottom: 50px;
+        }
+
+        .calendar-header-row { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            background: var(--primary); 
+            color: var(--accent); 
+            text-align: center; 
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+        .day-label { padding: 15px; border-right: 1px solid #333; }
+        .day-label:last-child { border-right: none; }
+
+        .calendar-body-row { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            min-height: 250px; 
+        }
+        .calendar-day-col { 
+            border-right: 1px solid #eee; 
+            padding: 12px; 
+            background-color: #fff; 
+            position: relative;
+        }
+        .calendar-day-col:last-child { border-right: none; }
+
+        /* TARGETES D'ENTRENAMENT AMB COLOR DINÀMIC */
+        .entrenament-card {
+            margin-bottom: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            background: white;
+            border: 1px solid #eee;
+            border-left: 6px solid; /* El color es posarà via style inline */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .entrenament-card:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1); 
+        }
+
+        .time-text { font-weight: 800; color: var(--primary); display: block; border-bottom: 1px solid #f0f0f0; margin-bottom: 6px; padding-bottom: 4px; }
+        .activity-text { font-weight: 700; color: #333; text-transform: uppercase; display: block; line-height: 1.2; padding-right: 30px; }
+        .user-text { font-size: 0.75rem; color: #666; font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 5px; }
+
+        /* ACCIONS DE LA CARD */
+        .card-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; }
+        .btn-action { padding: 0; background: transparent; border: none; font-size: 1rem; transition: 0.2s; opacity: 0.5; }
+        .btn-action:hover { opacity: 1; transform: scale(1.1); }
+        .btn-edit { color: var(--primary); }
+        .btn-delete { color: #dc3545; }
+
+        /* BOTONS I FILTRES */
+        .custom-select {
+            width: 300px; padding: 10px 15px; border: 2px solid #ddd; 
+            border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+        }
+        .btn-app {
+            background: var(--primary); color: var(--accent);
+            padding: 10px 25px; border-radius: 8px; text-decoration: none;
+            font-weight: 800; border: 2px solid var(--accent);
+            text-transform: uppercase; transition: 0.3s;
+        }
+        .btn-app:hover { background: var(--accent); color: var(--primary); }
+
+        .btn-outline-danger-app {
+            background: transparent; color: #dc3545;
+            padding: 10px 20px; border-radius: 8px; text-decoration: none;
+            font-weight: 700; border: 2px solid #dc3545;
+            text-transform: uppercase; transition: 0.3s;
+        }
+        .btn-outline-danger-app:hover { background: #dc3545; color: white; }
+
+        /* MODALS */
+        .modal-content { border-radius: 15px; border: none; overflow: hidden; }
+        .modal-header { background: var(--primary); color: var(--accent); border: none; }
+        .modal-title { font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-custom mb-4">
+    <div class="container-fluid px-4 d-flex justify-content-between align-items-center">
+        <a class="navbar-brand m-0" href="{% url 'inici' %}">
+            ESPORTS<span>CORB</span>
+        </a>
+        <a href="{% url 'inici' %}" class="btn btn-outline-light btn-sm fw-bold border-2 px-3">
+            <i class="bi bi-arrow-left me-1"></i> TORNAR A L'INICI
+        </a>
+    </div>
+</nav>
+
+<div class="container-fluid px-5">
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'dark' }} alert-dismissible fade show shadow-sm border-0" role="alert" style="border-left: 5px solid var(--accent) !important;">
+                <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- BARRA DE GESTIÓ -->
+    <div class="row mb-5 align-items-center bg-white p-4 rounded-3 shadow-sm border-bottom border-warning border-3">
+        <div class="col-md-4">
+            <h2 class="fw-bold m-0" style="letter-spacing: -1px;">Gestió de <span style="color: var(--accent)">Plantilla</span></h2>
+            <p class="text-muted small m-0">Configuració dels horaris fixos setmanals</p>
+        </div>
+        
+        <div class="col-md-4 d-flex justify-content-center">
+            <select id="filtreInstalacio" class="custom-select" onchange="filtrarVista()">
+                <option value="totes">--- TOTES LES INSTAL·LACIONS ---</option>
+                {% for inst in instalacions %}
+                <option value="section-inst-{{ inst.id }}">{{ inst.nom|upper }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-4 text-end">
+            <a href="{% url 'buidar_plantilla' %}" 
+               class="btn-outline-danger-app btn-sm me-2"
+               onclick="return confirm('ALERTA: Estàs a punt d\'esborrar TOTA la plantilla. Segur?')">
+                <i class="bi bi-trash3 me-1"></i> BUIDAR
+            </a>
+            <button class="btn-app shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNou">
+                <i class="bi bi-plus-lg me-1"></i> AFEGIR
+            </button>
+        </div>
+    </div>
+
+    <!-- SECCIONS PER PISTA -->
+    {% for inst in instalacions %}
+    <div class="instalacio-section" id="section-inst-{{ inst.id }}">
+        <!-- RECUPEREM EL COLOR DE LA INSTAL·LACIÓ AQUÍ -->
+        <h3 class="inst-section-title" style="border-color: {{ inst.color|default:'#d4af37' }};">
+            <span>{{ inst.nom }}</span>
+            <span class="badge bg-dark shadow-sm" style="font-size: 0.7rem; color: {{ inst.color|default:'#d4af37' }};">
+                <i class="bi bi-clock me-1"></i> {{ inst.hora_obertura|time:"H:i" }} - {{ inst.hora_tancament|time:"H:i" }}
+            </span>
+        </h3>
+        
+        <div class="calendar-container">
+            <div class="calendar-header-row">
+                {% for id, nom in dies_setmana %} <div class="day-label">{{ nom }}</div> {% endfor %}
+            </div>
+
+            <div class="calendar-body-row">
+                {% for dia_id, dia_nom in dies_setmana %}
+                <div class="calendar-day-col">
+                    {% for item in elements %}
+                        {% if item.dia_setmana == dia_id and item.instalacio.id == inst.id %}
+                            <!-- RECUPEREM EL COLOR DE LA INSTAL·LACIÓ A LA VORA DE LA CARD -->
+                            <div class="entrenament-card" style="border-left-color: {{ inst.color|default:'#d4af37' }} !important;">
+                                <div class="card-actions">
+                                    <a href="{% url 'editar_plantilla' item.id %}" class="btn-action btn-edit">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+                                    <a href="{% url 'eliminar_plantilla' item.id %}" class="btn-action btn-delete" 
+                                       onclick="return confirm('Eliminar aquest entrenament?')">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                                <span class="time-text">{{ item.inici|time:"H:i" }} - {{ item.final|time:"H:i" }}</span>
+                                <span class="activity-text">{{ item.activitat }}</span>
+                                <div class="user-text">
+                                    <i class="bi bi-person-circle"></i> {{ item.user.username }}
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- MODAL AFEGIR -->
+<div class="modal fade" id="modalNou" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nou Entrenament Fix</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">Dia de la setmana</label>
+                        <select name="dia_setmana" class="form-select border-2" required>
+                            {% for id, nom in dies_setmana %}
+                            <option value="{{ id }}">{{ nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">Instal·lació</label>
+                        <select name="instalacio" id="selectInstalacioModal" class="form-select border-2" required onchange="actualitzarFranges()">
+                            <option value="" selected disabled>Selecciona pista...</option>
+                            {% for inst in instalacions %}
+                            <option value="{{ inst.id }}">{{ inst.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">Usuari Responsable</label>
+                        <select name="usuari" class="form-select border-2" required>
+                            {% for u in usuaris %}
+                            <option value="{{ u.id }}">{{ u.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Hora Inici</label>
+                            <select name="inici" id="selectInici" class="form-select border-2" required disabled>
+                                {% for h in franges %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Hora Final</label>
+                            <select name="final" id="selectFinal" class="form-select border-2" required disabled>
+                                {% for h in franges %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold small text-uppercase">Activitat / Equip</label>
+                        <input type="text" name="activitat" class="form-control border-2" placeholder="Ex: Juvenil A" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm fw-bold text-muted" data-bs-dismiss="modal">CANCEL·LAR</button>
+                    <button type="submit" class="btn-app py-2 px-4">GUARDAR PLANTILLA</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const horarisPistes = {{ horaris_js|safe }};
+
+    function actualitzarFranges() {
+        const instId = document.getElementById('selectInstalacioModal').value;
+        const selectInici = document.getElementById('selectInici');
+        const selectFinal = document.getElementById('selectFinal');
+        if (!instId) return;
+        
+        const obertura = horarisPistes[instId].obertura;
+        const tancament = horarisPistes[instId].tancament;
+        
+        selectInici.disabled = false;
+        selectFinal.disabled = false;
+        
+        [selectInici, selectFinal].forEach(select => {
+            for (let option of select.options) {
+                const h = option.value;
+                if (h && (h < obertura || h > tancament)) {
+                    option.hidden = true;
+                    option.disabled = true;
+                } else {
+                    option.hidden = false;
+                    option.disabled = false;
+                }
+            }
+        });
+        selectInici.value = obertura;
+        selectFinal.value = tancament;
+    }
+
+    function filtrarVista() {
+        let valor = document.getElementById('filtreInstalacio').value;
+        let sections = document.getElementsByClassName('instalacio-section');
+        for (let sec of sections) {
+            sec.style.display = (valor === 'totes' || sec.id === valor) ? 'block' : 'none';
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

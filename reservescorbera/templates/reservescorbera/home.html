@@ -106,6 +106,13 @@
                 slotMaxTime: '24:00:00',
                 scrollTime: '08:00:00', 
                 allDaySlot: false,
+                eventDataTransform: function(eventData) {
+                    // Si el títol conté el prefix CONSERGE:, l'ocultem totalment
+                    if (eventData.title && eventData.title.toUpperCase().includes('CONSERGE:')) {
+                        eventData.display = 'none'; 
+                    }
+                    return eventData;
+                },
                 headerToolbar: { 
                     left: 'prev,next today', 
                     center: 'title', 

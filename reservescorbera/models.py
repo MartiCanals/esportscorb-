@@ -35,3 +35,27 @@ class Reserva(models.Model):
 
     def __str__(self):
         return f"{self.activitat} - {self.instalacio.nom} ({self.entitat.username})"
+
+class PlantillaReserva(models.Model):
+    # Aquí els teus camps, per exemple:
+    instalacio = models.ForeignKey(Instalacio, on_delete=models.CASCADE)
+    dia_setmana = models.IntegerField() # 0-6
+    inici = models.TimeField()
+    final = models.TimeField()
+    activitat = models.CharField(max_length=200)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.activitat} - Dia {self.dia_setmana}"
+
+
+class ActivitatExtra(models.Model):
+    titol = models.CharField(max_length=200)
+    data = models.DateField()
+    inici = models.TimeField()
+    final = models.TimeField()
+    # Aquest camp ens servirà per al calendari
+    tipus = models.CharField(max_length=20, default='extra', editable=False)
+
+    def __str__(self):
+        return self.titol

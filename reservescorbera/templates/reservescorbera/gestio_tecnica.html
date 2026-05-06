@@ -170,7 +170,12 @@
                         <td class="text-light-custom small">{{ u.email }}</td>
                         <td class="text-center">
                             {% if u.is_staff %}
-                                <span class="badge bg-warning text-dark" style="font-size: 0.65rem; font-weight: 800;">TÈCNIC</span>
+                                {# Comprovem si el primer grup de l'usuari és Conserge #}
+                                {% if u.groups.all.0.name == "Conserge" %}
+                                    <span class="badge bg-info text-dark" style="font-size: 0.65rem; font-weight: 800;">CONSERGE</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark" style="font-size: 0.65rem; font-weight: 800;">TÈCNIC</span>
+                                {% endif %}
                             {% else %}
                                 <span class="badge bg-secondary" style="font-size: 0.65rem; font-weight: 800;">ENTITAT</span>
                             {% endif %}

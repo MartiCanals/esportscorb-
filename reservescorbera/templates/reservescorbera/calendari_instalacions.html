@@ -168,20 +168,24 @@
         let modalReserva;
 
         document.addEventListener('DOMContentLoaded', function() {
-            modalReserva = new bootstrap.Modal(document.getElementById('modalReserva'));
+        modalReserva = new bootstrap.Modal(document.getElementById('modalReserva'));
 
-            // MOSTRAR MISSATGES DE BACKEND (DJango Messages)
-            {% if messages %}
+        // MOSTRAR MISSATGES DE BACKEND (Corregit)
+        {% if messages %}
+            let missatgesVistos = false;
+            if (!missatgesVistos) {
                 {% for message in messages %}
                     Swal.fire({
-                        icon: "{% if message.tags == 'success' %}success{% else %}error{% endif %}",
-                        title: "{{ message }}",
+                        icon: "{% if 'success' in message.tags %}success{% else %}error{% endif %}",
+                        title: "{{ message|escapejs }}", // escapejs evita errors amb cometes
                         confirmButtonColor: '#d4af37',
-                        timer: 3500
+                        timer: 3000
                     });
                 {% endfor %}
-            {% endif %}
-        });
+                missatgesVistos = true;
+            }
+        {% endif %}
+    });
 
         function obrirModalReserva(id, nom, obertura, tancament) {
             idSeleccionat = id;
@@ -217,45 +221,49 @@
             const selectInici = document.getElementById('selectInici');
             const selectFinal = document.getElementById('selectFinal');
             
-            // Netegem ambdós selectors
             selectInici.innerHTML = '<option value="">Inici...</option>';
             selectFinal.innerHTML = '<option value="">Final...</option>';
-            selectFinal.disabled = true; // Deshabilitem el final fins que triïn l'inici
+            selectFinal.disabled = true;
 
             let [hO, mO] = hObertura.split(':').map(Number);
             let [hT, mT] = hTancament.split(':').map(Number);
             let iniciMinuts = hO * 60 + mO;
             let tancamentMinuts = hT * 60 + mT;
 
-            // 1. Omplim NOMÉS el selector d'INICI (fins a 15 min abans del tancament)
-            for (let min = iniciMinuts; min < tancamentMinuts; min += 15) {
+            // Omplim inici (Excloem els últims 15 min del dia perquè ha de durar algo)
+            for (let min = iniciMinuts; min <= tancamentMinuts - 15; min += 15) {
                 let h = Math.floor(min / 60).toString().padStart(2, '0');
                 let m = (min % 60).toString().padStart(2, '0');
                 let horaStr = `${h}:${m}`;
-                selectInici.add(new Option(horaStr, horaStr));
+                
+                // OPCIONAL: Si l'hora ja està ocupada, la podem deshabilitar o marcar
+                let disabled = horesOcupadesActuals.includes(horaStr) ? 'disabled style="color:#ccc"' : '';
+                selectInici.innerHTML += `<option value="${horaStr}" ${disabled}>${horaStr}</option>`;
             }
 
-            // 2. Quan l'usuari canviï l'hora d'inici, generem les hores finals possibles
             selectInici.onchange = function() {
                 const iniciTriat = this.value;
                 selectFinal.innerHTML = '<option value="">Final...</option>';
-                
-                if (!iniciTriat) {
-                    selectFinal.disabled = true;
-                    validarSeleccio();
-                    return;
-                }
+                if (!iniciTriat) { selectFinal.disabled = true; return; }
 
                 selectFinal.disabled = false;
                 let [hI, mI] = iniciTriat.split(':').map(Number);
                 let iniciTriatMinuts = hI * 60 + mI;
 
-                // Comencem el bucle 15 minuts DESPRÉS de l'inici triat
+                // Omplim el final
                 for (let min = iniciTriatMinuts + 15; min <= tancamentMinuts; min += 15) {
                     let h = Math.floor(min / 60).toString().padStart(2, '0');
                     let m = (min % 60).toString().padStart(2, '0');
                     let horaStr = `${h}:${m}`;
-                    selectFinal.add(new Option(horaStr, horaStr));
+                    
+                    // Si trobem una hora ocupada ENMIG de la nostra selecció, 
+                    // hauríem de parar d'afegir opcions (perquè no es poden saltar reserves)
+                    let checkAnterior = Math.floor((min-15) / 60).toString().padStart(2, '0') + ":" + ((min-15)%60).toString().padStart(2, '0');
+                    if (horesOcupadesActuals.includes(checkAnterior) && min > iniciTriatMinuts + 15) {
+                        break; // Parem de donar opcions perquè hi ha una reserva enmig
+                    }
+                    
+                    selectFinal.innerHTML += `<option value="${horaStr}">${horaStr}</option>`;
                 }
                 validarSeleccio();
             };

@@ -8,11 +8,12 @@ from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Q  
 from datetime import datetime
-from .models import Instalacio, Reserva 
+from .models import Instalacio, Reserva, PlantillaReserva, ActivitatExtra
 from .forms import UserProfileForm  # El punt (.) vol dir "en aquesta mateixa carpeta"
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
 from datetime import timedelta
+import re
 
 # 1. HOME PÚBLIC
 def home(request):
@@ -30,36 +31,43 @@ def home(request):
 
 @login_required
 def inici(request):
-    # 1. PROCESSAR ACCIONS DEL TÈCNIC
+    # 1. PROCESSAR ACCIONS DEL TÈCNIC (POST)
     if request.method == "POST" and request.user.is_staff:
         reserva_id = request.POST.get('reserva_id')
         accio = request.POST.get('accio')
         try:
             reserva = Reserva.objects.get(id=reserva_id)
             if accio == 'validar':
-                reserva.estat = 'validada'  # OK: Coincideix amb el teu Model
+                reserva.estat = 'validada'
             elif accio == 'rebutjar':
-                reserva.estat = 'rebutjada' # CANVIAT: Abans deies 'anul·lada', però al model és 'rebutjada'
+                reserva.estat = 'rebutjada'
             reserva.save()
         except Reserva.DoesNotExist:
             pass
         return redirect('/inici/?gestio=1')
 
-    # 2. DADES PER AL TÈCNIC (Filtratge de dades velles)
+    # 2. DADES PER AL TÈCNIC / CONSERGE
     pendents = []
     num_pendents = 0
+    conserges = [] # Llista buida per defecte
+    
     if request.user.is_staff:
-        from django.utils import timezone
         ara = timezone.now()
         
-        # Filtrem perquè NO surtin les reserves que ja han passat de data
+        # Filtrem perquè NO surtin les reserves pendents passades
         pendents = Reserva.objects.filter(
             estat='pendent',
-            inici__gte=ara  # Només les que comencen ara o en el futur
+            inici__gte=ara
         ).order_by('inici')
         num_pendents = pendents.count()
+        
+        # OBTENIR ELS CONSERGES PER AL DESPLEGABLE
+        # Busquem el grup anomenat 'Conserge'
+        grup_conserge = Group.objects.filter(name='Conserge').first()
+        if grup_conserge:
+            conserges = grup_conserge.user_set.all().order_by('username')
 
-    # 3. DADES PER A L'USUARI
+    # 3. DADES GENERALS
     instalacions = Instalacio.objects.all().order_by('nom')
     les_meves_reserves = Reserva.objects.filter(entitat=request.user).order_by('-inici')
 
@@ -68,6 +76,7 @@ def inici(request):
         'les_meves_reserves': les_meves_reserves,
         'pendents': pendents,
         'num_pendents': num_pendents,
+        'conserges': conserges,  # <--- ARA SÍ: Arribarà al JS del SweetAlert
         'es_tecnic': request.user.is_staff
     }
     
@@ -112,40 +121,44 @@ def fer_reserva(request, instalacio_id):
     hora_fi = request.GET.get('hora_fi')
     nom_activitat = request.GET.get('nom_activitat', 'Activitat')
 
-    if dia and hora_inici and hora_fi:
-        try:
-            # Creem objectes datetime conscients de la zona horària
-            dt_inici = timezone.make_aware(datetime.strptime(f"{dia} {hora_inici}", "%Y-%m-%d %H:%M"))
-            dt_fi = timezone.make_aware(datetime.strptime(f"{dia} {hora_fi}", "%Y-%m-%d %H:%M"))
+    if not dia or not hora_inici:
+        return redirect('calendari_instalacions')
 
-            # COMPROVACIÓ CRÍTICA: Hi ha alguna reserva que se solapi?
-            solapament = Reserva.objects.filter(
-                instalacio=instalacio,
-                estat__in=['pendent', 'validada']
-            ).filter(
-                Q(inici__lt=dt_fi, final__gt=dt_inici) # La lògica matemàtica de solapament
-            ).exists()
+    try:
+        dt_inici = timezone.make_aware(datetime.strptime(f"{dia} {hora_inici}", "%Y-%m-%d %H:%M"))
+        dt_fi = timezone.make_aware(datetime.strptime(f"{dia} {hora_fi}", "%Y-%m-%d %H:%M"))
 
-            if solapament:
-                messages.error(request, "Aquesta franja horària s'ha ocupat mentrestant. Tria'n una altra.")
-                return redirect('calendari_instalacions') # Torna al selector de pistes
+        solapament = Reserva.objects.filter(
+            instalacio=instalacio,
+            estat__in=['pendent', 'validada']
+        ).filter(
+            Q(inici__lt=dt_fi, final__gt=dt_inici)
+        ).exists()
 
-            # Si no hi ha solapament, creem
-            Reserva.objects.create(
-                entitat=request.user,
-                instalacio=instalacio,
-                activitat=f"{request.user.username} - {nom_activitat}",
-                inici=dt_inici,
-                final=dt_fi,
-                estat='pendent'
-            )
-            messages.success(request, "Sol·licitud enviada correctament!")
-            return redirect('inici')
+        if solapament:
+            messages.error(request, "Aquesta franja s'ha ocupat. Tria'n una altra.")
+            return redirect('calendari_instalacions')
 
-        except Exception as e:
-            messages.error(request, f"Error en processar la reserva: {e}")
-    
-    return redirect('inici')
+        # --- CANVI AQUÍ: Preparem el títol amb el nom de l'entitat ---
+        # "MARTI: Entrenament" en lloc de només "Entrenament"
+        nom_usuari = request.user.username.upper()
+        titol_visible = f"{nom_usuari}: {nom_activitat}"
+
+        Reserva.objects.create(
+            entitat=request.user,
+            instalacio=instalacio,
+            activitat=titol_visible, # <--- Ara ja porta el nom incorporat
+            inici=dt_inici,
+            final=dt_fi,
+            estat='pendent'
+        )
+        
+        messages.success(request, "Sol·licitud enviada correctament!")
+        return redirect('inici')
+
+    except Exception as e:
+        messages.error(request, f"Error: {e}")
+        return redirect('calendari_instalacions')
 # 5. GESTIÓ TÈCNICA (STAFF)
 @staff_member_required
 def gestionar_reserves(request):
@@ -208,6 +221,14 @@ def eliminar_reserva(request, pk):
         reserva.delete()
         messages.success(request, "Reserva eliminada.")
     return redirect('gestionar_reserves')
+
+@staff_member_required
+def eliminar_extra(request, pk):
+    # Busquem l'activitat extra (avís daurat)
+    activitat = get_object_or_404(ActivitatExtra, pk=pk)
+    activitat.delete()
+    messages.success(request, "Activitat extraordinària eliminada.")
+    return redirect('activitats_extra')
 
 # 8. APIs
 def api_hores_ocupades(request):
@@ -277,49 +298,69 @@ def api_hores_ocupades(request):
             
     # Retornem la llista ordenada
     return JsonResponse(sorted(list(ocupades)), safe=False)
+from .models import Reserva, ActivitatExtra  # Assegura't d'importar el nou model
+
 def api_reserves(request):
-    if request.user.is_authenticated and request.user.is_staff:
-        # El tècnic ho veu tot
+    es_staff = request.user.is_authenticated and request.user.is_staff
+    es_conserge = request.user.groups.filter(name="Conserge").exists()
+
+    # Filtre de reserves (Això està bé)
+    if es_staff:
         reserves = Reserva.objects.all()
     else:
-        # Entitats i públic només validades
         reserves = Reserva.objects.filter(estat='validada')
     
     events = []
+
+    # 1. RESERVES DE PISTES
     for r in reserves:
-        # Color base de la instal·lació
-        color_base = r.instalacio.color or '#d4af37'
-        titol = r.activitat
-        
-        # Propietats per defecte (Validades)
-        background_color = color_base
-        border_color = color_base
-        text_color = '#ffffff' # Text blanc per a les validades
-
-        if r.estat == 'pendent':
-            # Si és pendent: Gris fosc amb 50% de transparència
-            background_color = 'rgba(108, 117, 125, 0.5)' 
-            border_color = 'rgba(108, 117, 125, 0.8)'
-            text_color = '#495057' # Text gris fosc per contrastar amb el fons translúcid
+        # Fem servir un try/except intern perquè si una reserva té un error, 
+        # no s'aturi tot el calendari
+        try:
+            color_base = r.instalacio.color or '#d4af37'
+            # ... (el teu codi de colors està perfecte)
             
-        elif r.estat == 'rebutjada':
-            background_color = 'rgba(220, 53, 69, 0.2)' # Vermell molt tènue
-            border_color = '#dc3545'
-            text_color = '#dc3545'
+            events.append({
+                'id': r.id,
+                'title': r.activitat,
+                'start': r.inici.isoformat(),
+                'end': r.final.isoformat(),
+                'backgroundColor': color_base if r.estat != 'pendent' else 'rgba(108, 117, 125, 0.5)',
+                'borderColor': color_base,
+                'textColor': '#ffffff',
+                'extendedProps': {
+                    'instalacio': r.instalacio.nom,
+                    'estat': r.estat,
+                    'tipus': 'reserva'
+                }
+            })
+        except Exception as e:
+            print(f"Error en reserva {r.id}: {e}")
 
-        events.append({
-            'id': r.id,
-            'title': titol,
-            'start': r.inici.isoformat(),
-            'end': r.final.isoformat(),
-            'backgroundColor': background_color,
-            'borderColor': border_color,
-            'textColor': text_color,
-            'extendedProps': {
-                'instalacio': r.instalacio.nom,
-                'estat': r.estat
-            }
-        })
+    # 2. ACTIVITATS EXTRA (Aquí és on peta per l'Staff)
+    if es_staff or es_conserge:
+        try:
+            activitats_extra = ActivitatExtra.objects.all()
+            for act in activitats_extra:
+                # Validem que tingui data i hores per evitar errors de format
+                if act.data and act.inici and act.final:
+                    events.append({
+                        'id': f"extra-{act.id}",
+                        'title': act.titol,
+                        # Fem servir f-strings segurs
+                        'start': f"{act.data.strftime('%Y-%m-%d')}T{act.inici.strftime('%H:%M:%S')}",
+                        'end': f"{act.data.strftime('%Y-%m-%d')}T{act.final.strftime('%H:%M:%S')}",
+                        'backgroundColor': '#2c3e50', # Color fosc per diferenciar-ho
+                        'textColor': '#ffffff',
+                        'extendedProps': {
+                            'tipus': 'extra'
+                        }
+                    })
+        except Exception as e:
+            # Si la taula ActivitatExtra no existeix o falla, 
+            # imprimim l'error a la consola però EL CALENDARI SEGUIRÀ MOSTRANT LES RESERVES
+            print(f"Error carregant Activitats Extra: {e}")
+
     return JsonResponse(events, safe=False)
 # 9. CONTEXT PROCESSOR / UTILITATS
 def comptador_pendents(request):
@@ -360,13 +401,15 @@ def editar_instalacio(request, pk):
     return render(request, 'reservescorbera/editar_instalacio.html', {'instalacio': instalacio})
 
 # 12. CREAR USUARI/ENTITAT
+from django.contrib.auth.models import User, Group # Important importar Group
+
 @staff_member_required
 def crear_usuari(request):
     if request.method == "POST":
         nom = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
-        tipus = request.POST.get('tipus') # Reblem el valor del select
+        tipus = request.POST.get('tipus')
         
         if User.objects.filter(username=nom).exists():
             messages.error(request, "Aquest nom d'usuari ja existeix.")
@@ -374,10 +417,18 @@ def crear_usuari(request):
             nou_usuari = User.objects.create_user(username=nom, email=email, password=password)
             
             if tipus == "conserge":
+                # 1. Donem accés a l'àrea privada
                 nou_usuari.is_staff = True
                 nou_usuari.save()
+                
+                # 2. Assignem el grup 'Conserge'
+                # get_or_create assegura que el grup existeixi a la base de dades
+                grup_conserge, created = Group.objects.get_or_create(name='Conserge')
+                nou_usuari.groups.add(grup_conserge)
+                
                 messages.success(request, f"Conserge '{nom}' creat amb èxit.")
             else:
+                # Si és entitat, no és staff i no té grup (usuari ras)
                 messages.success(request, f"Entitat '{nom}' creada amb èxit.")
                 
             return redirect('/gestio-tecnica/#config')
@@ -443,37 +494,64 @@ from django.views.decorators.http import require_POST
 @staff_member_required
 @require_POST
 def accio_reserva(request):
-    reserva_id = request.POST.get('id')
+    reserva_id_raw = request.POST.get('id')
     accio = request.POST.get('accio')
-    reserva = get_object_or_404(Reserva, id=reserva_id)
+    
+    # Netegem la ID: traiem qualsevol lletra (com "extra-") i ens quedem amb el número
+    reserva_id = re.sub(r'\D', '', str(reserva_id_raw))
+
+    # A. CAS CREAR
+    if accio == 'crear_directe':
+        titol = request.POST.get('titol')
+        inici = request.POST.get('inici')
+        final = request.POST.get('final')
+        
+        reserva = Reserva.objects.create(
+            activitat=titol,
+            inici=inici,
+            final=final,
+            instalacio=Instalacio.objects.first(),
+            entitat=request.user,
+            estat='validada'
+        )
+        return JsonResponse({
+            'status': 'ok',
+            'num_pendents': Reserva.objects.filter(estat='pendent').count(),
+            'estat_final': 'validada'
+        })
+
+    # B. GESTIÓ EXISTENTS
+    reserva = Reserva.objects.filter(id=reserva_id).first()
+    extra = ActivitatExtra.objects.filter(id=reserva_id).first()
+    
+    estat_final = 'pendent'
 
     if accio == 'eliminar':
-        reserva.delete()
+        if extra:
+            extra.delete()
+        elif reserva:
+            reserva.delete()
+        estat_final = 'eliminada'
+    
     elif accio == 'editar':
         nou_titol = request.POST.get('titol')
         nou_estat = request.POST.get('estat')
-        if nou_titol: reserva.activitat = nou_titol
-        if nou_estat: reserva.estat = nou_estat
-        reserva.save()
+        
+        if extra:
+            if nou_titol: extra.titol = nou_titol
+            extra.save()
+            estat_final = 'validada'
+        elif reserva:
+            if nou_titol: reserva.activitat = nou_titol
+            if nou_estat: reserva.estat = nou_estat
+            reserva.save()
+            estat_final = reserva.estat
 
-    # Recalculem el total de pendents per actualitzar la campaneta
-    num_pendents = Reserva.objects.filter(estat='pendent').count()
-
+    # AQUEST RETURN ÉS EL QUE EVITA EL "RETURNED NONE"
     return JsonResponse({
         'status': 'ok',
-        'msg': 'Operació realitzada',
-        'num_pendents': num_pendents,
-        'estat_final': reserva.estat,
-        'reserva': { # Enviem dades per si hem de "tornar a crear" la targeta
-            'id': reserva.id,
-            'activitat': reserva.activitat,
-            'inici': reserva.inici.strftime('%H:%M'),
-            'final': reserva.final.strftime('%H:%M'),
-            'data': reserva.inici.strftime('%d/%m'),
-            'entitat': reserva.entitat.username,
-            'instalacio': reserva.instalacio.nom,
-            'color': reserva.instalacio.color or '#d4af37'
-        }
+        'num_pendents': Reserva.objects.filter(estat='pendent').count(),
+        'estat_final': estat_final
     })
 
 
@@ -509,3 +587,227 @@ def perfil(request):
         'perfil_form': perfil_form,
         'password_form': password_form
     })
+
+
+
+from datetime import datetime, timedelta
+
+from datetime import datetime, timedelta
+
+@login_required
+def aplicar_plantilla_al_calendari(request):
+    if request.user.is_staff:
+        from .models import PlantillaReserva, Reserva
+        from django.utils import timezone
+        
+        # 1. Intentem capturar la data de qualsevol d'aquestes dues variables
+        data_str = request.GET.get('data_inici') or request.GET.get('data_dilluns')
+        
+        # Aquest print t'ha de sortir amb la data ara sí!
+        print(f"\n---> DATA DETECTADA: {data_str}\n")
+        
+        if data_str:
+            try:
+                dia_referencia = datetime.strptime(data_str, '%Y-%m-%d').date()
+            except ValueError:
+                dia_referencia = timezone.now().date()
+        else:
+            dia_referencia = timezone.now().date()
+
+        # 2. CALCULEM EL DILLUNS (Això és el que mou les reserves de lloc)
+        dilluns_setmana = dia_referencia - timedelta(days=dia_referencia.weekday())
+        
+        plantilla = PlantillaReserva.objects.all()
+        creades = 0
+        
+        for item in plantilla:
+            # IMPORTANT: Fem servir 'dilluns_setmana' per calcular el dia exacte
+            data_reserva = dilluns_setmana + timedelta(days=item.dia_setmana)
+            
+            dt_inici = timezone.make_aware(datetime.combine(data_reserva, item.inici))
+            dt_final = timezone.make_aware(datetime.combine(data_reserva, item.final))
+
+            hi_ha_solapament = Reserva.objects.filter(
+                instalacio=item.instalacio,
+                inici__lt=dt_final,
+                final__gt=dt_inici
+            ).exclude(estat='rebutjada').exists()
+
+            if not hi_ha_solapament:
+                nom_usuari = item.user.username.upper()
+                Reserva.objects.create(
+                    entitat=item.user,
+                    instalacio=item.instalacio,
+                    inici=dt_inici,
+                    final=dt_final,
+                    activitat=f"{nom_usuari}: {item.activitat}",
+                    estat='validada'
+                )
+                creades += 1
+            
+        messages.success(request, f"✨ Plantilla aplicada a la setmana del {dilluns_setmana.strftime('%d/%m/%Y')}")
+    
+    return redirect('inici')
+@login_required
+def gestio_plantilla(request):
+    # 1. SEGURETAT: Només l'staff pot gestionar la plantilla
+    if not request.user.is_staff:
+        return redirect('inici')
+    
+    if request.method == 'POST':
+        try:
+            dia = int(request.POST.get('dia_setmana'))
+            inst_id = request.POST.get('instalacio')
+            h_inici_str = request.POST.get('inici')
+            h_final_str = request.POST.get('final')
+            
+            # Convertim els valors del formulari a objectes de temps
+            t_inici = datetime.strptime(h_inici_str, '%H:%M').time()
+            t_final = datetime.strptime(h_final_str, '%H:%M').time()
+            
+            inst = Instalacio.objects.get(id=inst_id)
+
+            # --- VALIDACIÓ 1: Horari d'obertura/tancament de la pista ---
+            if t_inici < inst.hora_obertura or t_final > inst.hora_tancament:
+                messages.error(request, f"Error: {inst.nom} només obre de {inst.hora_obertura.strftime('%H:%M')} a {inst.hora_tancament.strftime('%H:%M')}.")
+                return redirect('gestio_plantilla')
+
+            # --- VALIDACIÓ 2: Coherència (Inici abans que Final) ---
+            if t_inici >= t_final:
+                messages.error(request, "L'hora d'inici ha de ser anterior a la de final.")
+                return redirect('gestio_plantilla')
+
+            # --- VALIDACIÓ 3: No solapaments (Dues coses alhora) ---
+            solapament = PlantillaReserva.objects.filter(
+                dia_setmana=dia,
+                instalacio=inst,
+                inici__lt=t_final,  # Si algun existent comença abans que el nou acabi
+                final__gt=t_inici   # Si algun existent acaba després que el nou comenci
+            ).exists()
+
+            if solapament:
+                messages.error(request, f"Ja hi ha una activitat a {inst.nom} en aquesta franja horària.")
+                return redirect('gestio_plantilla')
+
+            # Si tot està bé, guardem
+            PlantillaReserva.objects.create(
+                dia_setmana=dia,
+                instalacio=inst,
+                user_id=request.POST.get('usuari'),
+                inici=t_inici,
+                final=t_final,
+                activitat=request.POST.get('activitat')
+            )
+            messages.success(request, "Entrenament fix afegit correctament.")
+            
+        except Exception as e:
+            messages.error(request, f"S'ha produït un error: {e}")
+            
+        return redirect('gestio_plantilla')
+
+    # --- PREPARACIÓ DE DADES PER AL RENDER ---
+    
+    # Elements ordenats cronològicament
+    elements = PlantillaReserva.objects.all().order_by('inici')
+    instalacions = Instalacio.objects.all()
+    usuaris = User.objects.exclude(username='marti').order_by('username')
+    
+    # Generem totes les franges possibles de 15 minuts (8h a 24h)
+    franges = [f"{h:02d}:{m:02d}" for h in range(8, 24) for m in [0, 15, 30, 45]]
+    
+    dies_setmana = [
+        (0, 'Dilluns'), (1, 'Dimarts'), (2, 'Dimecres'), (3, 'Dijous'), 
+        (4, 'Divendres'), (5, 'Dissabte'), (6, 'Diumenge')
+    ]
+
+    # Diccionari d'horaris per passar-lo al JavaScript del HTML
+    horaris_pistes_js = {
+        str(i.id): {
+            'obertura': i.hora_obertura.strftime('%H:%M'),
+            'tancament': i.hora_tancament.strftime('%H:%M')
+        } for i in instalacions
+    }
+
+    return render(request, 'reservescorbera/gestio_plantilla.html', {
+        'elements': elements,
+        'instalacions': instalacions,
+        'usuaris': usuaris,
+        'dies_setmana': dies_setmana,
+        'franges': franges,
+        'horaris_js': horaris_pistes_js  # Aquest és el que fa que el JS funcioni
+    })
+
+@login_required
+def eliminar_plantilla(request, pk):
+    if request.user.is_staff:
+        item = PlantillaReserva.objects.get(pk=pk)
+        item.delete()
+        messages.success(request, "Entrenament eliminat de la plantilla.")
+    return redirect('gestio_plantilla')
+
+@login_required
+def editar_plantilla(request, pk):
+    if not request.user.is_staff:
+        return redirect('inici')
+    
+    item = PlantillaReserva.objects.get(pk=pk)
+    
+    if request.method == 'POST':
+        item.dia_setmana = int(request.POST.get('dia_setmana'))
+        item.instalacio_id = request.POST.get('instalacio')
+        item.user_id = request.POST.get('usuari')
+        item.inici = request.POST.get('inici')
+        item.final = request.POST.get('final')
+        item.activitat = request.POST.get('activitat')
+        
+        # Aquí podries repetir les validacions de solapament que hem fet abans
+        item.save()
+        messages.success(request, "Entrenament actualitzat correctament.")
+        return redirect('gestio_plantilla')
+    
+    # Per l'edició, necessitem les mateixes dades que a la vista general
+    instalacions = Instalacio.objects.all()
+    usuaris = User.objects.exclude(username='marti')
+    franges = [f"{h:02d}:{m:02d}" for h in range(8, 24) for m in [0, 15, 30, 45]]
+    dies_setmana = [(0, 'Dilluns'), (1, 'Dimarts'), (2, 'Dimecres'), (3, 'Dijous'), (4, 'Divendres'), (5, 'Dissabte'), (6, 'Diumenge')]
+    
+    return render(request, 'reservescorbera/editar_plantilla.html', {
+        'item': item,
+        'instalacions': instalacions,
+        'usuaris': usuaris,
+        'franges': franges,
+        'dies_setmana': dies_setmana
+    })
+
+@login_required
+def buidar_plantilla(request):
+    if request.user.is_staff:
+        # Esborrem absolutament tots els registres de la PlantillaReserva
+        PlantillaReserva.objects.all().delete()
+        messages.success(request, "S'ha buidat tota la plantilla setmanal rectament.")
+    else:
+        messages.error(request, "No tens permisos per fer aquesta acció.")
+    
+    return redirect('gestio_plantilla')
+
+def activitats_extra(request):
+    # 1. Si l'usuari envia el formulari (POST)
+    if request.method == "POST":
+        titol = request.POST.get('titol')
+        data = request.POST.get('data')
+        inici = request.POST.get('inici')
+        final = request.POST.get('final')
+        
+        # Creem l'activitat a la base de dades
+        ActivitatExtra.objects.create(
+            titol=titol,
+            data=data,
+            inici=inici,
+            final=final,
+            tipus='extra' # Això és el que farà que es vegi daurat
+        )
+        return redirect('activitats_extra') # Recarreguem per netejar el formulari
+
+    # 2. Si l'usuari només entra a la pàgina (GET)
+    activitats = ActivitatExtra.objects.all().order_by('-data')
+    return render(request, 'reservescorbera/activitats_extra.html', {'activitats': activitats})
