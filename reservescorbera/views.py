@@ -160,8 +160,9 @@ def fer_reserva(request, instalacio_id):
         messages.error(request, f"Error: {e}")
         return redirect('calendari_instalacions')
 # 5. GESTIÓ TÈCNICA (STAFF)
+# BUSCA LA FUNCIÓ QUE COMENÇA A LA LÍNIA 129 I DEIXA-LA AIXÍ:
 @staff_member_required
-def gestionar_reserves(request):
+def gestio_tecnica(request):  # <--- Canviem el nom perquè coincideixi amb urls.py
     totes_les_reserves = Reserva.objects.all().order_by('-inici')[:50]
     totes_les_instalacions = Instalacio.objects.all().order_by('nom')
     
@@ -171,7 +172,7 @@ def gestionar_reserves(request):
     context = {
         'historial': totes_les_reserves,
         'instalacions': totes_les_instalacions,
-        'usuaris': usuaris_filtrats, # Envia la llista filtrada!
+        'usuaris': usuaris_filtrats, 
     }
     
     return render(request, 'reservescorbera/gestio_tecnica.html', context)
@@ -195,7 +196,7 @@ def crear_instalacio(request):
                 hora_tancament=h_tancament
             )
             messages.success(request, f"Instal·lació '{nom}' afegida correctament.")
-            return redirect('gestionar_reserves')
+            return redirect('gestio_tecnica')
         else:
             messages.error(request, "El nom és obligatori.")
 
@@ -380,7 +381,7 @@ def eliminar_instalacio(request, pk):
         instalacio.delete()
         messages.success(request, f"La instal·lació '{nom_pista}' s'ha eliminat correctament.")
     
-    return redirect('gestionar_reserves')
+    return redirect('gestio_tecnica')
 
 @staff_member_required
 def editar_instalacio(request, pk):
@@ -396,7 +397,7 @@ def editar_instalacio(request, pk):
             
         instalacio.save()
         messages.success(request, f"Instal·lació '{instalacio.nom}' actualitzada.")
-        return redirect('gestionar_reserves')
+        return redirect('gestio_tecnica')
         
     return render(request, 'reservescorbera/editar_instalacio.html', {'instalacio': instalacio})
 
@@ -811,3 +812,51 @@ def activitats_extra(request):
     # 2. Si l'usuari només entra a la pàgina (GET)
     activitats = ActivitatExtra.objects.all().order_by('-data')
     return render(request, 'reservescorbera/activitats_extra.html', {'activitats': activitats})
+
+
+from django.contrib.auth.models import User
+
+from django.contrib.auth.models import User
+
+@login_required
+def meves_reserves(request):
+    # 1. Reserves de qui està loguejat (exclou consergeria)
+    reserves_usuari = Reserva.objects.filter(
+        entitat=request.user
+    ).exclude(
+        activitat__icontains="CONSERGE:"
+    ).order_by('inici')
+    
+    # 2. Llista d'entitats (excloent tu, staff i conserges)
+    totes_entitats = User.objects.exclude(id=request.user.id) \
+                             .exclude(username='marti') \
+                             .exclude(is_staff=True) \
+                             .exclude(is_superuser=True) \
+                             .order_by('username')
+    
+    return render(request, 'reservescorbera/gestionar_reserves.html', {
+        'reserves': reserves_usuari,
+        'totes_entitats': totes_entitats
+    })
+
+@login_required
+def eliminar_reserva_entitat(request):
+    if request.method == 'POST':
+        reserva_id = request.POST.get('id')
+        entitat_id = request.POST.get('entitat_avisada')
+        motiu = request.POST.get('motiu')
+
+        try:
+            reserva = Reserva.objects.get(id=reserva_id, entitat=request.user)
+            
+            # Aquí podries crear una Notificació per a l'entitat_id si ha estat seleccionada
+            if entitat_id:
+                # Logica d'enviament d'avís (ex: crear un objecte Notificació o enviar mail)
+                pass
+
+            reserva.delete()
+            return JsonResponse({'status': 'ok'})
+        except Reserva.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'No s\'ha trobat la reserva.'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Mètode no permès.'})

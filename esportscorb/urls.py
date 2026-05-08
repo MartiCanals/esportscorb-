@@ -20,7 +20,7 @@ urlpatterns = [
     path('reserva/<int:instalacio_id>/', views.fer_reserva, name='fer_reserva'),
 
     # Gestió tècnica (Staff) 
-    path('gestio-tecnica/', views.gestionar_reserves, name='gestionar_reserves'),
+    path('gestio-tecnica/', views.gestio_tecnica, name='gestio_tecnica'),
     path('gestio-tecnica/nova-instalacio/', views.crear_instalacio, name='crear_instalacio'),
     path('gestio-tecnica/eliminar-instalacio/<int:pk>/', views.eliminar_instalacio, name='eliminar_instalacio'),
     path('reserva/editar/<int:pk>/', views.editar_reserva, name='editar_reserva'),
@@ -40,6 +40,9 @@ urlpatterns = [
     path('gestio-tecnica/eliminar-usuari/<int:pk>/', views.eliminar_usuari, name='eliminar_usuari'),
     path('accio-reserva/', views.accio_reserva, name='accio_reserva'),
     path('perfil/', views.perfil, name='perfil'),
+    path('gestionar-reserves/', views.meves_reserves, name='gestionar_reserves'),
+    # Modifica aquesta línia al teu urls.py
+    path('eliminar-reserva-entitat/', views.eliminar_reserva_entitat, name='eliminar_reserva_entitat'),
     # APIs
     path('api/reserves/', views.api_reserves, name='api_reserves'),
     path('api/hores-ocupades/', views.api_hores_ocupades, name='api_hores_ocupades'),
