@@ -72,7 +72,9 @@
                     <div class="color-strip" style="background-color: {{ r.instalacio.color }};"></div>
                     
                     <!-- BOTÓ ELIMINAR (A dalt a la dreta, aïllat) -->
-                    <button onclick="obrirModalEliminar('{{ r.id }}', '{{ r.activitat }}')" class="btn-delete-float shadow-sm">
+                    <button type="button" 
+                            onclick="obrirModalEliminar('{{ r.id }}', '{{ r.activitat|escapejs }}')" 
+                            class="btn-delete-float shadow-sm">
                         <i class="bi bi-trash3-fill"></i>
                     </button>
 
@@ -116,34 +118,21 @@
 <!-- MODAL ELIMINAR -->
 <div class="modal fade" id="modalEliminar" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content shadow-lg">
-            <div class="modal-header">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-danger text-white border-bottom-0">
                 <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Anul·lar Reserva</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4">
-                <p id="txt-confirmacio" class="fw-bold text-danger mb-4"></p>
-                
-                <div class="bg-light p-3 rounded-3 border mb-3">
-                    <label class="form-label small fw-bold text-uppercase text-muted">Avisar a una altra entitat?</label>
-                    <select class="form-select border-0 bg-white shadow-sm" id="avisar-entitat">
-                        <option value="">-- No avisar a ningú --</option>
-                        {% for e in totes_entitats %}
-                            {% if e.id != user.id %}
-                                <option value="{{ e.id }}">{{ e.username }}</option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="mb-0">
-                    <label class="form-label small fw-bold text-uppercase text-muted">Motiu de l'anul·lació:</label>
-                    <textarea class="form-control shadow-sm" id="motiu-anulacio" rows="3" placeholder="Per què anulleu la reserva?"></textarea>
+            <div class="modal-body p-4 text-center">
+                <p id="txt-confirmacio" class="fs-5 fw-bold mb-3"></p>
+                <div class="alert alert-warning border-0 shadow-sm mb-0">
+                    <i class="bi bi-envelope-at-fill me-2"></i>
+                    En confirmar, el sistema enviarà un correu al <strong>tècnic i a totes les entitats</strong> per avisar que l'espai queda lliure.
                 </div>
             </div>
-            <div class="modal-footer border-0 pb-4 px-4">
-                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">CANCEL·LAR</button>
-                <button type="button" onclick="confirmarEliminar()" class="btn btn-danger fw-bold px-4 shadow-sm">CONFIRMAR ANUL·LACIÓ</button>
+            <div class="modal-footer border-0 justify-content-center pb-4">
+                <button type="button" class="btn btn-light px-4 fw-bold" data-bs-dismiss="modal">ENRERE</button>
+                <button type="button" id="btnConfirmarFinal" onclick="confirmarEliminar()" class="btn btn-danger px-4 fw-bold shadow">SÍ, ANUL·LAR I AVISAR</button>
             </div>
         </div>
     </div>
@@ -152,59 +141,75 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    const modalDel = new bootstrap.Modal(document.getElementById('modalEliminar'));
-    let idAReservaAEliminar = null;
+    window.idReservaAEliminar = null;
 
     function obrirModalEliminar(id, titol) {
-        idAReservaAEliminar = id;
-        document.getElementById('txt-confirmacio').innerText = `Segur que vols eliminar "${titol}"?`;
-        document.getElementById('motiu-anulacio').value = '';
-        document.getElementById('avisar-entitat').value = '';
-        modalDel.show();
+        window.idReservaAEliminar = id;
+        document.getElementById('txt-confirmacio').innerText = "Vols anul·lar la reserva '" + titol + "'?";
+
+        // Obertura forçada manual (la que ens ha funcionat)
+        const modalElement = document.getElementById('modalEliminar');
+        modalElement.classList.add('show');
+        modalElement.style.display = 'block';
+        
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        backdrop.id = 'manual-backdrop';
+        document.body.appendChild(backdrop);
+        document.body.classList.add('modal-open');
+    }
+
+    function tancarModalManual() {
+        const modalElement = document.getElementById('modalEliminar');
+        modalElement.classList.remove('show');
+        modalElement.style.display = 'none';
+        const backdrop = document.getElementById('manual-backdrop');
+        if (backdrop) backdrop.remove();
+        document.body.classList.remove('modal-open');
     }
 
     function confirmarEliminar() {
-        const motiu = document.getElementById('motiu-anulacio').value;
-        const entitatAvisada = document.getElementById('avisar-entitat').value;
+        const id = window.idReservaAEliminar;
+        if (!id) return;
 
-        if (!motiu.trim()) {
-            Swal.fire({ icon: 'warning', title: 'Atenció', text: 'Has d\'escriure un motiu.' });
-            return;
-        }
+        const btn = document.getElementById('btnConfirmarFinal');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviant correus...';
 
-        const formData = new FormData();
-        formData.append('id', idAReservaAEliminar);
-        formData.append('motiu', motiu);
-        formData.append('entitat_avisada', entitatAvisada);
-        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        const data = new FormData();
+        data.append('id', id);
+        data.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
         fetch("{% url 'eliminar_reserva_entitat' %}", {
             method: 'POST',
-            body: formData,
+            body: data,
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'ok') {
-                modalDel.hide();
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Eliminada!',
-                    text: 'La reserva s\'ha eliminat correctament.',
-                    timer: 2000,
-                    showConfirmButton: false
-                }).then(() => {
-                    location.reload();
-                });
+        .then(res => res.json())
+        .then(resData => {
+            if (resData.status === 'ok') {
+                tancarModalManual();
+                window.location.reload();
             } else {
-                Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+                alert("Error: " + resData.message);
+                btn.disabled = false;
+                btn.innerText = "SÍ, ANUL·LAR I AVISAR";
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire({ icon: 'error', title: 'Error', text: 'No s\'ha pogut processar la petició.' });
+        .catch(err => {
+            console.error(err);
+            alert("Error de connexió");
+            btn.disabled = false;
+            btn.innerText = "SÍ, ANUL·LAR I AVISAR";
         });
     }
+
+    // Tancar modal si cliquen fora o a la X
+    document.addEventListener('click', function(e) {
+        if (e.target.getAttribute('data-bs-dismiss') === 'modal' || e.target.id === 'manual-backdrop') {
+            tancarModalManual();
+        }
+    });
 </script>
 </body>
 </html>

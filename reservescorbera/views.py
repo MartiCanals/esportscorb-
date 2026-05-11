@@ -14,6 +14,7 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
 from datetime import timedelta
 import re
+from django.core.mail import send_mail
 
 # 1. HOME PÚBLIC
 def home(request):
@@ -121,13 +122,28 @@ def fer_reserva(request, instalacio_id):
     hora_fi = request.GET.get('hora_fi')
     nom_activitat = request.GET.get('nom_activitat', 'Activitat')
 
-    if not dia or not hora_inici:
+    if not dia or not hora_inici or not hora_fi:
         return redirect('calendari_instalacions')
 
     try:
+        # Convertim a objectes datetime conscients de la zona horària
         dt_inici = timezone.make_aware(datetime.strptime(f"{dia} {hora_inici}", "%Y-%m-%d %H:%M"))
         dt_fi = timezone.make_aware(datetime.strptime(f"{dia} {hora_fi}", "%Y-%m-%d %H:%M"))
 
+        # 1. PROTECCIÓ ANTI-DUPLICATS (Evita el problema del doble clic/fantasma)
+        # Si ja existeix exactament la mateixa reserva per aquest usuari, no fem res.
+        duplicat_propi = Reserva.objects.filter(
+            entitat=request.user,
+            instalacio=instalacio,
+            inici=dt_inici,
+            final=dt_fi
+        ).exists()
+
+        if duplicat_propi:
+            # Si és un duplicat de la mateixa persona, el portem a l'inici sense avisar d'error
+            return redirect('inici')
+
+        # 2. VALIDACIÓ DE SOLAPAMENT (Amb altres reserves)
         solapament = Reserva.objects.filter(
             instalacio=instalacio,
             estat__in=['pendent', 'validada']
@@ -139,15 +155,14 @@ def fer_reserva(request, instalacio_id):
             messages.error(request, "Aquesta franja s'ha ocupat. Tria'n una altra.")
             return redirect('calendari_instalacions')
 
-        # --- CANVI AQUÍ: Preparem el títol amb el nom de l'entitat ---
-        # "MARTI: Entrenament" en lloc de només "Entrenament"
+        # 3. CREACIÓ DE LA RESERVA
         nom_usuari = request.user.username.upper()
         titol_visible = f"{nom_usuari}: {nom_activitat}"
 
         Reserva.objects.create(
             entitat=request.user,
             instalacio=instalacio,
-            activitat=titol_visible, # <--- Ara ja porta el nom incorporat
+            activitat=titol_visible,
             inici=dt_inici,
             final=dt_fi,
             estat='pendent'
@@ -157,8 +172,9 @@ def fer_reserva(request, instalacio_id):
         return redirect('inici')
 
     except Exception as e:
-        messages.error(request, f"Error: {e}")
+        messages.error(request, f"Error en processar la reserva: {e}")
         return redirect('calendari_instalacions')
+
 # 5. GESTIÓ TÈCNICA (STAFF)
 # BUSCA LA FUNCIÓ QUE COMENÇA A LA LÍNIA 129 I DEIXA-LA AIXÍ:
 @staff_member_required
@@ -816,18 +832,20 @@ def activitats_extra(request):
 
 from django.contrib.auth.models import User
 
-from django.contrib.auth.models import User
-
 @login_required
 def meves_reserves(request):
-    # 1. Reserves de qui està loguejat (exclou consergeria)
+    ara = timezone.now() # Agafem el moment actual
+    
+    # 1. Reserves de qui està loguejat (NOMÉS FUTURES o EN CURS)
     reserves_usuari = Reserva.objects.filter(
-        entitat=request.user
+        entitat=request.user,
+        final__gte=ara  # Fem servir 'final' perquè si l'activitat encara no ha acabat, surti a la llista
     ).exclude(
         activitat__icontains="CONSERGE:"
     ).order_by('inici')
     
     # 2. Llista d'entitats (excloent tu, staff i conserges)
+    # Aquesta part està perfecta tal com la tenies
     totes_entitats = User.objects.exclude(id=request.user.id) \
                              .exclude(username='marti') \
                              .exclude(is_staff=True) \
@@ -841,22 +859,65 @@ def meves_reserves(request):
 
 @login_required
 def eliminar_reserva_entitat(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         reserva_id = request.POST.get('id')
-        entitat_id = request.POST.get('entitat_avisada')
-        motiu = request.POST.get('motiu')
+        reserva = get_object_or_404(Reserva, id=reserva_id)
+        
+        # 1. Convertim les hores a l'hora local (la que tens al settings.py)
+        # Això farà que si a la DB posa 16:00 UTC, aquí es transformi a 18:00 (Madrid)
+        inici_local = timezone.localtime(reserva.inici)
+        final_local = timezone.localtime(reserva.final)
+        
+        # Busquem tots els correus
+        destinataris = User.objects.filter(
+            is_active=True
+        ).exclude(
+            email=''
+        ).values_list('email', flat=True)
+        
+        llista_emails = list(destinataris)
 
-        try:
-            reserva = Reserva.objects.get(id=reserva_id, entitat=request.user)
+        if llista_emails:
+            assumpte = f"📢 ANUL·LACIÓ: {reserva.instalacio.nom} - {reserva.activitat}"
             
-            # Aquí podries crear una Notificació per a l'entitat_id si ha estat seleccionada
-            if entitat_id:
-                # Logica d'enviament d'avís (ex: crear un objecte Notificació o enviar mail)
-                pass
+            # 2. Fem servir les variables "_local" que hem creat a dalt
+            cos = (
+                f"Hola,\n\nEs comunica que la següent reserva ha estat ANUL·LADA i l'espai torna a estar disponible:\n\n"
+                f"📍 Espai: {reserva.instalacio.nom}\n"
+                f"📅 Data: {inici_local.strftime('%d/%m/%Y')}\n"
+                f"⏰ Hora: {inici_local.strftime('%H:%M')} - {final_local.strftime('%H:%M')}\n"
+                f"👤 Entitat que l'ha alliberat: {request.user.username}\n\n"
+                f"Aquest és un missatge automàtic enviat a totes les entitats i al servei tècnic."
+            )
 
-            reserva.delete()
-            return JsonResponse({'status': 'ok'})
-        except Reserva.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'No s\'ha trobat la reserva.'})
-    
-    return JsonResponse({'status': 'error', 'message': 'Mètode no permès.'})
+            try:
+                send_mail(
+                    assumpte,
+                    cos,
+                    None,
+                    llista_emails,
+                    fail_silently=False,
+                )
+            except Exception as e:
+                print(f"Error enviant correu: {e}")
+
+        reserva.delete()
+        return JsonResponse({'status': 'ok'})
+
+    return JsonResponse({'status': 'error'}, status=405)
+
+
+@staff_member_required
+def canviar_password_usuari(request, pk):
+    if request.method == "POST":
+        usuari = get_object_or_404(User, pk=pk)
+        # Només permetem canviar-la si NO és un superusuari (per seguretat)
+        if not usuari.is_superuser:
+            nova_pass = request.POST.get('nova_password')
+            usuari.set_password(nova_pass)
+            usuari.save()
+            messages.success(request, f"S'ha canviat la contrasenya de {usuari.username} correctament.")
+        else:
+            messages.error(request, "No pots canviar la contrasenya de l'administrador principal.")
+            
+    return redirect('/gestio-tecnica/') # O la teva ruta de gestió
