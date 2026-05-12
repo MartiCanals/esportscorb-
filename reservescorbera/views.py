@@ -16,6 +16,7 @@ from datetime import timedelta
 import re
 from django.core.mail import send_mail
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 
 # 1. HOME PÚBLIC
 def home(request):
