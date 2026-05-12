@@ -15,6 +15,7 @@ from django.contrib.auth import update_session_auth_hash
 from datetime import timedelta
 import re
 from django.core.mail import send_mail
+from django.conf import settings
 
 # 1. HOME PÚBLIC
 def home(request):
@@ -863,41 +864,36 @@ def eliminar_reserva_entitat(request):
         reserva_id = request.POST.get('id')
         reserva = get_object_or_404(Reserva, id=reserva_id)
         
-        # 1. Convertim les hores a l'hora local (la que tens al settings.py)
-        # Això farà que si a la DB posa 16:00 UTC, aquí es transformi a 18:00 (Madrid)
         inici_local = timezone.localtime(reserva.inici)
         final_local = timezone.localtime(reserva.final)
         
-        # Busquem tots els correus
-        destinataris = User.objects.filter(
-            is_active=True
-        ).exclude(
-            email=''
-        ).values_list('email', flat=True)
+        # Guardem les dades abans d'esborrar (important!)
+        espai_nom = reserva.instalacio.nom
+        activitat_nom = reserva.activitat
         
-        llista_emails = list(destinataris)
+        destinataris = list(User.objects.filter(is_active=True).exclude(email='').values_list('email', flat=True))
 
-        if llista_emails:
-            assumpte = f"📢 ANUL·LACIÓ: {reserva.instalacio.nom} - {reserva.activitat}"
-            
-            # 2. Fem servir les variables "_local" que hem creat a dalt
+        if destinataris:
+            assumpte = f"📢 ANUL·LACIÓ: {espai_nom} - {activitat_nom}"
             cos = (
                 f"Hola,\n\nEs comunica que la següent reserva ha estat ANUL·LADA i l'espai torna a estar disponible:\n\n"
-                f"📍 Espai: {reserva.instalacio.nom}\n"
+                f"📍 Espai: {espai_nom}\n"
                 f"📅 Data: {inici_local.strftime('%d/%m/%Y')}\n"
                 f"⏰ Hora: {inici_local.strftime('%H:%M')} - {final_local.strftime('%H:%M')}\n"
                 f"👤 Entitat que l'ha alliberat: {request.user.username}\n\n"
-                f"Aquest és un missatge automàtic enviat a totes les entitats i al servei tècnic."
+                f"Aquest és un missatge automàtic."
             )
 
             try:
-                send_mail(
-                    assumpte,
-                    cos,
-                    None,
-                    llista_emails,
-                    fail_silently=False,
+                from django.core.mail import EmailMessage
+                email = EmailMessage(
+                    subject=assumpte,
+                    body=cos,
+                    from_email=None,
+                    to=['esportscorb@gmail.com'], # Te l'envies a tu
+                    bcc=destinataris,           # Tota la resta en còpia oculta
                 )
+                email.send(fail_silently=False)
             except Exception as e:
                 print(f"Error enviant correu: {e}")
 

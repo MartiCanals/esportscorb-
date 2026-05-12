@@ -161,4 +161,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+# Utilitzem variables d'entorn per seguretat (les posarem a Vercel)
+EMAIL_HOST_USER = 'esportscorb@gmail.com'
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+
+# Remitent per defecte
+DEFAULT_FROM_EMAIL = f"Esports Corbera <{EMAIL_HOST_USER}>"
