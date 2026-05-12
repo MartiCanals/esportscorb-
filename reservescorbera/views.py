@@ -858,20 +858,26 @@ def meves_reserves(request):
         'totes_entitats': totes_entitats
     })
 
+@csrf_exempt # Per evitar l'error 403 que et sortia
 @login_required
 def eliminar_reserva_entitat(request):
     if request.method == "POST":
         reserva_id = request.POST.get('id')
         reserva = get_object_or_404(Reserva, id=reserva_id)
         
+        # 1. Guardem les dades abans d'esborrar
         inici_local = timezone.localtime(reserva.inici)
         final_local = timezone.localtime(reserva.final)
-        
-        # Guardem les dades abans d'esborrar (important!)
         espai_nom = reserva.instalacio.nom
         activitat_nom = reserva.activitat
         
-        destinataris = list(User.objects.filter(is_active=True).exclude(email='').values_list('email', flat=True))
+        # 2. Busquem només els usuaris que TINGUIN correu
+        # Això evita que el sistema s'encalli si algú no en té
+        destinataris = list(User.objects.filter(
+            is_active=True
+        ).exclude(
+            Q(email='') | Q(email__isnull=True) # Exclou buits i nuls
+        ).values_list('email', flat=True))
 
         if destinataris:
             assumpte = f"📢 ANUL·LACIÓ: {espai_nom} - {activitat_nom}"
@@ -881,22 +887,25 @@ def eliminar_reserva_entitat(request):
                 f"📅 Data: {inici_local.strftime('%d/%m/%Y')}\n"
                 f"⏰ Hora: {inici_local.strftime('%H:%M')} - {final_local.strftime('%H:%M')}\n"
                 f"👤 Entitat que l'ha alliberat: {request.user.username}\n\n"
-                f"Aquest és un missatge automàtic."
+                f"Aquest és un missatge automàtic enviat a les entitats amb correu registrat."
             )
 
             try:
+                # Fem servir EmailMessage per poder fer servir BCC (Còpia oculta)
                 from django.core.mail import EmailMessage
                 email = EmailMessage(
                     subject=assumpte,
                     body=cos,
-                    from_email=None,
-                    to=['esportscorb@gmail.com'], # Te l'envies a tu
-                    bcc=destinataris,           # Tota la resta en còpia oculta
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=['esportscorb@gmail.com'], # T'arriba a tu com a confirmació
+                    bcc=destinataris,           # Arriba a tots els que sí que tenen mail
                 )
                 email.send(fail_silently=False)
             except Exception as e:
+                # Si falla l'enviament, ho registrem però deixem que la reserva s'esborri
                 print(f"Error enviant correu: {e}")
 
+        # 3. Finalment esborrem la reserva de la base de dades
         reserva.delete()
         return JsonResponse({'status': 'ok'})
 
