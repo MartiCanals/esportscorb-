@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "reservescorbera",
+    "reservescorbera"
+    "cloudinary",
 ]
 
 MIDDLEWARE = [
@@ -172,3 +173,13 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
 # Remitent per defecte
 DEFAULT_FROM_EMAIL = f"Esports Corbera <{EMAIL_HOST_USER}>"
+
+# Configura l'emmagatzematge
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+# Dades de connexió (les posarem a Vercel com a variables d'entorn)
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+}
