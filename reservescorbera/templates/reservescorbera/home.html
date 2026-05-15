@@ -189,15 +189,16 @@
         });
 
         function actualitzarTot(select) {
-            const val = select.value; // Ara rebrà l'ID (ex: "5")
+            const val = String(select.value); // L'ID triat (ex: "60")
             const opt = select.options[select.selectedIndex];
+            const dataImg = opt.getAttribute('data-img');
+
+            // 1. Gestió de la sidebar (Imatges) - Això ja et funcionava
             const container = document.getElementById('photo-container');
             const img = document.getElementById('inst-photo');
             const placeholder = document.getElementById('no-photo-placeholder');
             const label = document.getElementById('photo-name');
-            const dataImg = opt.getAttribute('data-img');
 
-            // 1. Gestió visual de la sidebar (Imatges)
             if (val === 'tots') {
                 container.style.display = 'none';
             } else {
@@ -213,11 +214,24 @@
                 }
             }
 
-            // 2. ACTUALITZACIÓ DEL FILTRE DEL CALENDARI
+            // 2. FILTRE REAL (El que hem provat a la consola)
             if (calendar) {
-                // Fem 'render' per forçar el calendari a tornar a passar pel 'eventDidMount'
-                // Ara que hem canviat el selector a ID, la comparació serà correcta.
-                calendar.render(); 
+                calendar.getEvents().forEach(ev => {
+                    const idInst = String(ev.extendedProps.id_inst || "");
+                    const idPare = String(ev.extendedProps.id_pare || "");
+                    const tipus = ev.extendedProps.tipus;
+
+                    // Condicions per mostrar:
+                    const esTots = (val === 'tots');
+                    const esCoincidencia = (idInst === val || idPare === val);
+                    const esExcepcio = (tipus === 'extra' || tipus === 'conserge' || ev.allDay);
+
+                    if (esTots || esCoincidencia || esExcepcio) {
+                        ev.setProp('display', 'auto'); // Torna a mostrar
+                    } else {
+                        ev.setProp('display', 'none'); // Amaga
+                    }
+                });
             }
         }
     </script>
