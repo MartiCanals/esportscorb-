@@ -444,25 +444,55 @@ def editar_instalacio(request, pk):
     instalacio = get_object_or_404(Instalacio, pk=pk)
     
     if request.method == "POST":
+        # 1. Camps bàsics
         instalacio.nom = request.POST.get('nom')
         instalacio.color = request.POST.get('color')
         instalacio.hora_obertura = request.POST.get('hora_obertura')
         instalacio.hora_tancament = request.POST.get('hora_tancament')
         
+        # 2. NOUS CAMPS: Horari de cap de setmana
+        # El checkbox envia 'on' si està marcat, si no, arriba None
+        esta_obert_finde = request.POST.get('obert_cap_setmana') == 'on'
+        instalacio.obert_cap_setmana = esta_obert_finde
+        
+        if esta_obert_finde:
+            instalacio.hora_obertura_finde = request.POST.get('hora_obertura_finde')
+            instalacio.hora_tancament_finde = request.POST.get('hora_tancament_finde')
+        else:
+            # Si marquem com a tancat, opcionalment podem buidar les hores
+            instalacio.hora_obertura_finde = None
+            instalacio.hora_tancament_finde = None
+
+        # 3. Imatge
         if request.FILES.get('imatge'):
             instalacio.imatge = request.FILES.get('imatge')
             
         instalacio.save()
-        messages.success(request, f"Instal·lació '{instalacio.nom}' actualitzada.")
+
+        # 4. REPLICACIÓ A SUB-ZONES (Important!)
+        # Si aquesta pista té fills, els actualitzem perquè heretin els nous horaris
+        fills = Instalacio.objects.filter(parent=instalacio)
+        for fill in fills:
+            fill.color = instalacio.color
+            fill.hora_obertura = instalacio.hora_obertura
+            fill.hora_tancament = instalacio.hora_tancament
+            fill.obert_cap_setmana = instalacio.obert_cap_setmana
+            fill.hora_obertura_finde = instalacio.hora_obertura_finde
+            fill.hora_tancament_finde = instalacio.hora_tancament_finde
+            # La imatge normalment també s'hereta si no en tenen una de pròpia
+            if instalacio.imatge:
+                fill.imatge = instalacio.imatge
+            fill.save()
+
+        messages.success(request, f"Instal·lació '{instalacio.nom}' i les seves sub-zones actualitzades.")
         return redirect('gestio_tecnica')
         
-    # Agafem els fills (sub-espais) si en té
     sub_espais = instalacio.sub_espais.all()
     
     context = {
         'instalacio': instalacio,
         'sub_espais': sub_espais,
-        'es_sub_espai': instalacio.parent is not None # Per saber si estem editant un fill
+        'es_sub_espai': instalacio.parent is not None 
     }
     
     return render(request, 'reservescorbera/editar_instalacio.html', context)
