@@ -361,19 +361,18 @@
                     const selector = document.getElementById('selector-instalacio');
                     if (!selector) return;
 
-                    const instalacioSeleccionada = selector.value.toLowerCase();
+                    const cerca = selector.value.toLowerCase().trim();
                     const tipusEvent = info.event.extendedProps.tipus;
-                    // Obtenim la instal·lació si existeix (per a reserves normals)
-                    const instalacioEvent = info.event.extendedProps.instalacio ? info.event.extendedProps.instalacio.toLowerCase() : '';
+                    const nomInstReserva = (info.event.extendedProps.instalacio || "").toLowerCase().trim();
 
-                    // SI ÉS EXTRA o CONSERGE: No apliquem filtre, es mostra SEMPRE
+                    // 1. Si és Conserge o Extra, es mostra sempre
                     if (tipusEvent === 'extra' || tipusEvent === 'conserge' || info.event.allDay) {
                         info.el.style.display = ''; 
                         return;
                     }
 
-                    // SI ÉS RESERVA NORMAL: Filtrem per pista
-                    if (instalacioSeleccionada !== 'tots' && instalacioEvent !== instalacioSeleccionada) {
+                    // 2. EL CANVI CRÍTIC: Filtre per inclusió per veure "fills"
+                    if (cerca !== 'tots' && !nomInstReserva.includes(cerca)) {
                         info.el.style.display = 'none';
                     } else {
                         info.el.style.display = '';
@@ -583,6 +582,7 @@
 
         function filtrarPerDesplegable(valor) {
             const cerca = valor.toLowerCase().trim();
+            
             calendar.getEvents().forEach(ev => {
                 const nomInst = (ev.extendedProps.instalacio || "").toLowerCase().trim();
                 const tipus = ev.extendedProps.tipus;
@@ -593,7 +593,7 @@
                     return;
                 }
 
-                // Filtre per "Conté" (Pavelló mostrarà Pavelló - Pista 1)
+                // EL CANVI: Ara fem servir .includes() en comptes de ===
                 if (cerca === 'tots' || nomInst.includes(cerca)) {
                     ev.setProp('display', 'auto');
                 } else {

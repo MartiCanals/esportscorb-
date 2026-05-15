@@ -20,6 +20,7 @@
 
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--primary); margin: 0; }
 
+        /* Top Bar */
         #top-bar { 
             display: flex; justify-content: space-between; align-items: center;
             padding: 12px 40px; background: var(--primary); color: white;
@@ -28,12 +29,14 @@
         #top-bar h1 span { color: var(--accent); }
         .btn-staff { border: 1px solid var(--accent); color: var(--accent); padding: 6px 15px; border-radius: 4px; text-decoration: none; font-size: 0.75rem; font-weight: bold; }
 
+        /* Estructura Principal */
         .main-layout {
             display: grid;
             grid-template-columns: 320px 1fr;
             min-height: calc(100vh - 55px);
         }
 
+        /* Sidebar */
         .sidebar {
             background: white; border-right: 1px solid var(--border);
             padding: 40px 30px; display: flex; flex-direction: column; gap: 30px;
@@ -47,6 +50,7 @@
             border-radius: 8px; font-weight: 700; outline: none; cursor: pointer;
         }
 
+        /* Contenidor de la Imatge (Protegit contra ValueError) */
         #photo-container {
             margin-top: auto; width: 100%; height: 200px;
             border-radius: 12px; overflow: hidden; background: #222;
@@ -55,7 +59,6 @@
 
         #photo-container img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* Estil per quan no hi ha foto */
         #no-photo-placeholder {
             height: 100%; display: none; flex-direction: column;
             align-items: center; justify-content: center; color: #555;
@@ -67,6 +70,7 @@
             color: white; padding: 10px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
         }
 
+        /* Àrea del Calendari */
         .calendar-area { padding: 30px; background: #fff; }
         #calendar { height: 100%; }
 
@@ -105,12 +109,10 @@
 
             <div id="photo-container">
                 <img id="inst-photo" src="" alt="" style="display: none;">
-                
                 <div id="no-photo-placeholder">
                     <i class="bi bi-building fs-1"></i>
                     <span class="mt-2 small fw-bold">SENSE FOTO</span>
                 </div>
-                
                 <div class="photo-label" id="photo-name"></div>
             </div>
         </aside>
@@ -122,6 +124,7 @@
 
     <script>
         let calendar;
+
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
             calendar = new FullCalendar.Calendar(calendarEl, {
@@ -140,6 +143,21 @@
                 },
                 buttonText: { today: 'Avui', month: 'Mes', week: 'Setmana', day: 'Dia' },
                 events: '/api/reserves/',
+
+                // Lògica de filtratge que s'executa cada cop que es dibuixa un esdeveniment
+                eventDidMount: function(info) {
+                    const selector = document.getElementById('selector-instalacio');
+                    const cerca = selector.value.toLowerCase().trim();
+                    const nomReserva = (info.event.extendedProps.instalacio || "").toLowerCase().trim();
+
+                    // Si estem filtrant i el nom de la reserva NO inclou el text seleccionat, l'ocultem
+                    if (cerca !== 'tots' && !nomReserva.includes(cerca)) {
+                        info.el.style.display = 'none';
+                    } else {
+                        info.el.style.display = ''; // Per defecte es veu
+                    }
+                },
+
                 eventClick: function(info) {
                     Swal.fire({
                         title: info.event.extendedProps.instalacio,
@@ -152,7 +170,7 @@
         });
 
         function actualitzarTot(select) {
-            const val = select.value; // El nom del pare (ex: "pavelló")
+            const val = select.value;
             const opt = select.options[select.selectedIndex];
             const container = document.getElementById('photo-container');
             const img = document.getElementById('inst-photo');
@@ -160,13 +178,12 @@
             const label = document.getElementById('photo-name');
             const dataImg = opt.getAttribute('data-img');
 
-            // 1. Gestió de la imatge de la columna lateral
+            // Actualització visual de la sidebar (Fotos)
             if (val === 'tots') {
                 container.style.display = 'none';
             } else {
                 container.style.display = 'block';
                 label.innerText = opt.text;
-                
                 if (dataImg === 'none' || !dataImg) {
                     img.style.display = 'none';
                     placeholder.style.display = 'flex';
@@ -177,22 +194,10 @@
                 }
             }
 
-            // 2. FILTRE INTEL·LIGENT DEL CALENDARI
-            const cerca = val.toLowerCase().trim();
-            
-            calendar.getEvents().forEach(ev => {
-                // Obtenim el nom de la instal·lació on s'ha fet la reserva
-                const nomReserva = (ev.extendedProps.instalacio || "").toLowerCase().trim();
-                
-                // Si triem "tots", ho mostrem tot.
-                // Si triem una instal·lació, mostrem l'esdeveniment si el seu nom CONTÉ el que hem buscat.
-                // Exemple: Si busquem "pavelló", mostrarà "pavelló", "pavelló - pista 1" i "pavelló - pista 2".
-                if (cerca === 'tots' || nomReserva.includes(cerca)) {
-                    ev.setProp('display', 'auto');
-                } else {
-                    ev.setProp('display', 'none');
-                }
-            });
+            // Forçar al calendari a tornar a passar pel eventDidMount
+            if (calendar) {
+                calendar.render(); 
+            }
         }
     </script>
 </body>
