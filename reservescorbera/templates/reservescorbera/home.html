@@ -96,10 +96,13 @@
             </div>
 
             <div class="filter-box">
-                <select id="selector-instalacio" onchange="actualitzarTot(this)">
+                <select class="custom-select" id="selector-instalacio" onchange="actualitzarTot(this)">
                     <option value="tots">Totes les instal·lacions</option>
                     {% for inst in instalacions %}
-                        <option value="{{ inst.id }}" data-img="...">{{ inst.nom }}</option>
+                        <option value="{{ inst.id }}" 
+                                data-img="{% if inst.imatge and inst.imatge.name %}{{ inst.imatge.url }}{% else %}none{% endif %}">
+                            {{ inst.nom }}
+                        </option>
                     {% endfor %}
                 </select>
             </div>
@@ -146,28 +149,31 @@
                     const selector = document.getElementById('selector-instalacio');
                     if (!selector) return;
 
-                    const cerca = String(selector.value).trim(); // ID seleccionat (ex: "65")
+                    const cerca = selector.value; // Ara conté l'ID de la instal·lació (ex: "5")
+                    const tipus = info.event.extendedProps.tipus;
 
-                    // 1. Si és "tots", mostrem sense mirar res més
+                    // 1. SEMPRE visible si triem "tots"
                     if (cerca === 'tots') {
                         info.el.style.display = '';
                         return;
                     }
 
-                    // 2. Excepcions (Avisos globals, etc.)
-                    if (info.event.extendedProps.tipus === 'extra' || info.event.allDay) {
+                    // 2. EXCEPCIONS: Avisos globals (Extres) o notes de conserge sempre es veuen
+                    if (tipus === 'extra' || tipus === 'conserge' || info.event.allDay) {
                         info.el.style.display = '';
                         return;
                     }
 
-                    // 3. LA COMPARACIÓ (La clau de l'aposta)
-                    const idInst = String(info.event.extendedProps.id_inst || "").trim();
-                    const idPare = String(info.event.extendedProps.id_pare || "").trim();
+                    // 3. FILTRE PER ID (La clau de la jerarquia)
+                    // Passem a String per assegurar que la comparació és idèntica
+                    const idInst = String(info.event.extendedProps.id_inst || "");
+                    const idPare = String(info.event.extendedProps.id_pare || "");
 
+                    // Si la reserva és de la pista seleccionada O si la pista pare és la seleccionada
                     if (idInst === cerca || idPare === cerca) {
-                        info.el.style.display = ''; // Coincideix ID o Pare: MOSTRAR
+                        info.el.style.display = ''; 
                     } else {
-                        info.el.style.display = 'none'; // NO coincideix: AMAGAR (Això és el que et falta!)
+                        info.el.style.display = 'none';
                     }
                 },
 
@@ -183,9 +189,35 @@
         });
 
         function actualitzarTot(select) {
-            // ... (el teu codi de les fotos) ...
+            const val = select.value; // Ara rebrà l'ID (ex: "5")
+            const opt = select.options[select.selectedIndex];
+            const container = document.getElementById('photo-container');
+            const img = document.getElementById('inst-photo');
+            const placeholder = document.getElementById('no-photo-placeholder');
+            const label = document.getElementById('photo-name');
+            const dataImg = opt.getAttribute('data-img');
+
+            // 1. Gestió visual de la sidebar (Imatges)
+            if (val === 'tots') {
+                container.style.display = 'none';
+            } else {
+                container.style.display = 'block';
+                label.innerText = opt.text;
+                if (dataImg === 'none' || !dataImg) {
+                    img.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                } else {
+                    img.src = dataImg;
+                    img.style.display = 'block';
+                    placeholder.style.display = 'none';
+                }
+            }
+
+            // 2. ACTUALITZACIÓ DEL FILTRE DEL CALENDARI
             if (calendar) {
-                calendar.render(); // Això fa que s'executi el eventDidMount
+                // Fem 'render' per forçar el calendari a tornar a passar pel 'eventDidMount'
+                // Ara que hem canviat el selector a ID, la comparació serà correcta.
+                calendar.render(); 
             }
         }
     </script>
