@@ -360,23 +360,23 @@ from .models import Reserva, ActivitatExtra  # Assegura't d'importar el nou mode
 
 def api_reserves(request):
     es_staff = request.user.is_authenticated and request.user.is_staff
-    # Check de grup segur per a usuaris anònims
     es_conserge = request.user.is_authenticated and request.user.groups.filter(name="Conserge").exists()
 
-    # 1. FILTRE DE RESERVES (Aquí apliquem la seguretat)
     if es_staff:
         reserves = Reserva.objects.all()
     else:
-        # Pels usuaris públics: només validades I que NO siguin de conserge
         reserves = Reserva.objects.filter(estat='validada').exclude(activitat__icontains='CONSERGE')
     
     events = []
 
-    # 1. RESERVES DE PISTES
     for r in reserves:
         try:
             color_base = r.instalacio.color or '#d4af37'
             
+            # DETERMINEM EL PARE (si en té)
+            # Si r.instalacio.parent existeix, agafem el seu ID, si no, None.
+            id_pare = r.instalacio.parent.id if r.instalacio.parent else None
+
             events.append({
                 'id': r.id,
                 'title': r.activitat,
@@ -387,6 +387,8 @@ def api_reserves(request):
                 'textColor': '#ffffff',
                 'extendedProps': {
                     'instalacio': r.instalacio.nom,
+                    'id_inst': r.instalacio.id,        # <--- AFEGIT: ID de la pista
+                    'id_pare': id_pare,                # <--- AFEGIT: ID del pare
                     'estat': r.estat,
                     'tipus': 'reserva'
                 }
@@ -394,12 +396,7 @@ def api_reserves(request):
         except Exception as e:
             print(f"Error en reserva {r.id}: {e}")
 
-    # 2. ACTIVITATS EXTRA (Avisos daurats)
-    # He mogut això FORA de l'if es_staff perquè vols que el públic vegi els avisos de manteniment, etc.
-    # Però només si l'usuari és staff/conserge o si vols que siguin públiques. 
-    # Si vols que les Activitats Extra siguin PÚBLIQUES, treu el "if es_staff or es_conserge:"
-    
-    if es_staff or es_conserge: # Canvia aquesta condició si vols que les extres siguin públiques
+    if es_staff or es_conserge:
         try:
             activitats_extra = ActivitatExtra.objects.all()
             for act in activitats_extra:
@@ -409,11 +406,13 @@ def api_reserves(request):
                         'title': act.titol,
                         'start': f"{act.data.strftime('%Y-%m-%d')}T{act.inici.strftime('%H:%M:%S')}",
                         'end': f"{act.data.strftime('%Y-%m-%d')}T{act.final.strftime('%H:%M:%S')}",
-                        'backgroundColor': '#d4af37', # Color daurat per a les extres
+                        'backgroundColor': '#d4af37',
                         'textColor': '#1a1a1a',
                         'extendedProps': {
                             'tipus': 'extra',
-                            'instalacio': 'AVÍS GLOBAL'
+                            'instalacio': 'AVÍS GLOBAL',
+                            'id_inst': None, # Les extres no solen tenir pista fixa
+                            'id_pare': None
                         }
                     })
         except Exception as e:

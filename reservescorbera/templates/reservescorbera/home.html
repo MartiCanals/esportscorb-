@@ -149,17 +149,28 @@
                     const selector = document.getElementById('selector-instalacio');
                     if (!selector) return;
 
-                    const cerca = selector.value.toLowerCase().trim();
-                    const nomReserva = (info.event.extendedProps.instalacio || "").toLowerCase().trim();
+                    const cerca = selector.value; // Ara conté l'ID de la instal·lació (ex: "5")
+                    const tipus = info.event.extendedProps.tipus;
 
-                    // Si és "tots", mostrem tot sempre
+                    // 1. SEMPRE visible si triem "tots"
                     if (cerca === 'tots') {
                         info.el.style.display = '';
                         return;
                     }
 
-                    // Filtre: mirem si el nom de la reserva conté la paraula del pare
-                    if (nomReserva.includes(cerca)) {
+                    // 2. EXCEPCIONS: Avisos globals (Extres) o notes de conserge sempre es veuen
+                    if (tipus === 'extra' || tipus === 'conserge' || info.event.allDay) {
+                        info.el.style.display = '';
+                        return;
+                    }
+
+                    // 3. FILTRE PER ID (La clau de la jerarquia)
+                    // Passem a String per assegurar que la comparació és idèntica
+                    const idInst = String(info.event.extendedProps.id_inst || "");
+                    const idPare = String(info.event.extendedProps.id_pare || "");
+
+                    // Si la reserva és de la pista seleccionada O si la pista pare és la seleccionada
+                    if (idInst === cerca || idPare === cerca) {
                         info.el.style.display = ''; 
                     } else {
                         info.el.style.display = 'none';

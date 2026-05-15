@@ -361,21 +361,33 @@
                     const selector = document.getElementById('selector-instalacio');
                     if (!selector) return;
 
-                    const cerca = selector.value.toLowerCase().trim();
+                    // Ara 'cerca' serà l'ID seleccionat (ex: "5") o "tots"
+                    const cerca = selector.value; 
                     const tipusEvent = info.event.extendedProps.tipus;
-                    const nomInstReserva = (info.event.extendedProps.instalacio || "").toLowerCase().trim();
 
-                    // 1. Si és Conserge o Extra, es mostra sempre
+                    // 1. Si és Conserge o Extra (avisos), es mostra sempre
                     if (tipusEvent === 'extra' || tipusEvent === 'conserge' || info.event.allDay) {
                         info.el.style.display = ''; 
                         return;
                     }
 
-                    // 2. EL CANVI CRÍTIC: Filtre per inclusió per veure "fills"
-                    if (cerca !== 'tots' && !nomInstReserva.includes(cerca)) {
-                        info.el.style.display = 'none';
-                    } else {
+                    // 2. Si triem "tots", ho ensenyem tot
+                    if (cerca === 'tots') {
                         info.el.style.display = '';
+                        return;
+                    }
+
+                    // 3. FILTRE PER ID (Relació Pare-Fill)
+                    // Obtenim els nous camps que hem enviat des de la view de Python
+                    const idInst = String(info.event.extendedProps.id_inst || "");
+                    const idPare = String(info.event.extendedProps.id_pare || "");
+
+                    // Si l'ID de la pista coincideix amb la selecció
+                    // O si el seu pare és el seleccionat (ex: triem Pavelló i la pista és filla)
+                    if (idInst === cerca || idPare === cerca) {
+                        info.el.style.display = '';
+                    } else {
+                        info.el.style.display = 'none';
                     }
                 },
 
@@ -582,17 +594,14 @@
 
         function filtrarPerDesplegable(valor) {
             if (calendar) {
-                // 1. Forcem el recalcul dels esdeveniments
-                calendar.render(); 
+                // 'valor' ja és l'ID que ve del selector (ex: "5" o "tots")
                 
-                // 2. Si veus que encara no reacciona, fem un petit "truc" 
-                // que obliga a FullCalendar a repintar tots els elements del DOM:
-                const esdeveniments = calendar.getEvents();
-                esdeveniments.forEach(ev => {
-                    // Això no canvia res de la base de dades, 
-                    // però obliga al calendari a tornar a executar el eventDidMount
-                    ev.setProp('title', ev.title); 
-                });
+                // Simplement renderitzem. Com que el eventDidMount ara consulta 
+                // directament el valor del selector, s'aplicarà el filtre automàticament.
+                calendar.render();
+
+                // Si vols assegurar-te que el calendari es posi al dia amb les dades de l'API:
+                // calendar.refetchEvents(); 
             }
         }
 
