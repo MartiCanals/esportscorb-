@@ -589,20 +589,23 @@ def accio_reserva(request):
     reserva_id_raw = request.POST.get('id')
     accio = request.POST.get('accio')
     
-    # Netegem la ID: traiem qualsevol lletra (com "extra-") i ens quedem amb el número
-    reserva_id = re.sub(r'\D', '', str(reserva_id_raw))
+    # Netegem la ID per si ve amb prefixos (com "extra-12")
+    reserva_id = re.sub(r'\D', '', str(reserva_id_raw)) if reserva_id_raw else None
 
-    # A. CAS CREAR
-    if accio == 'crear_directe':
+    # --- A. CAS CREAR (Unificat per 'crear' o 'crear_directe') ---
+    if accio in ['crear', 'crear_directe']:
         titol = request.POST.get('titol')
         inici = request.POST.get('inici')
         final = request.POST.get('final')
-        # Recollim la ID que enviem des del JS
-        instalacio_id = request.POST.get('instalacio_id') 
-        tipus = request.POST.get('tipus', 'reserva')
-
-        # Busquem la instal·lació real, si no la troba, posem la primera per seguretat
-        instalacio_real = Instalacio.objects.filter(id=instalacio_id).first() or Instalacio.objects.first()
+        
+        # Intentem recollir l'ID tant si ve com 'id_inst' o 'instalacio_id'
+        instalacio_id = request.POST.get('id_inst') or request.POST.get('instalacio_id')
+        
+        # Busquem la instal·lació real
+        instalacio_real = Instalacio.objects.filter(id=instalacio_id).first()
+        
+        if not instalacio_real:
+            return JsonResponse({'status': 'error', 'message': 'Instal·lació no trobada'})
         
         nova_reserva = Reserva.objects.create(
             activitat=titol,
@@ -610,27 +613,25 @@ def accio_reserva(request):
             final=final,
             instalacio=instalacio_real,
             entitat=request.user,
-            estat='validada',
-            # Si el teu model de Reserva té un camp 'tipus', l'assignem aquí:
-            # tipus=tipus 
+            estat='validada' # Les del tècnic ja neixen confirmades
         )
+        
         return JsonResponse({
             'status': 'ok',
+            'message': 'Activitat creada correctament',
             'num_pendents': Reserva.objects.filter(estat='pendent').count(),
             'estat_final': 'validada'
         })
 
-    # B. GESTIÓ EXISTENTS
-    reserva = Reserva.objects.filter(id=reserva_id).first()
-    extra = ActivitatExtra.objects.filter(id=reserva_id).first()
+    # --- B. GESTIÓ EXISTENTS ---
+    reserva = Reserva.objects.filter(id=reserva_id).first() if reserva_id else None
+    extra = ActivitatExtra.objects.filter(id=reserva_id).first() if reserva_id else None
     
     estat_final = 'pendent'
 
     if accio == 'eliminar':
-        if extra:
-            extra.delete()
-        elif reserva:
-            reserva.delete()
+        if extra: extra.delete()
+        elif reserva: reserva.delete()
         estat_final = 'eliminada'
     
     elif accio == 'editar':
@@ -647,7 +648,6 @@ def accio_reserva(request):
             reserva.save()
             estat_final = reserva.estat
 
-    # AQUEST RETURN ÉS EL QUE EVITA EL "RETURNED NONE"
     return JsonResponse({
         'status': 'ok',
         'num_pendents': Reserva.objects.filter(estat='pendent').count(),
