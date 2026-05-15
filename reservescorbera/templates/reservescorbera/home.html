@@ -149,7 +149,7 @@
                     const selector = document.getElementById('selector-instalacio');
                     if (!selector) return;
 
-                    const cerca = selector.value; // Ara conté l'ID de la instal·lació (ex: "5")
+                    const cerca = String(selector.value).trim(); // Ara conté l'ID de la instal·lació (ex: "5")
                     const tipus = info.event.extendedProps.tipus;
 
                     // 1. SEMPRE visible si triem "tots"
