@@ -215,10 +215,10 @@
             </a>
             <div class="d-flex align-items-center gap-2">
                 <span style="font-weight: 700; font-size: 0.8rem; color: #555; text-transform: uppercase;">Filtre:</span>
-                <select class="custom-select" id="selector-instalacio" onchange="filtrarPerDesplegable(this.value)">
-                    <option value="tots">- TOTES LES INSTAL·LACIONS -</option>
+                <select id="selector-instalacio" class="form-select" onchange="filtrarPerDesplegable(this.value)">
+                    <option value="tots">Totes les instal·lacions</option>
                     {% for inst in instalacions %}
-                        <option value="{{ inst.nom|lower }}">{{ inst.nom }}</option>
+                        <option value="{{ inst.id }}">{{ inst.nom }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -361,29 +361,18 @@
                     const selector = document.getElementById('selector-instalacio');
                     if (!selector) return;
 
-                    // Ara 'cerca' serà l'ID seleccionat (ex: "5") o "tots"
-                    const cerca = selector.value; 
-                    const tipusEvent = info.event.extendedProps.tipus;
+                    const cerca = String(selector.value); // L'ID del selector
+                    const props = info.event.extendedProps;
 
-                    // 1. Si és Conserge o Extra (avisos), es mostra sempre
-                    if (tipusEvent === 'extra' || tipusEvent === 'conserge' || info.event.allDay) {
-                        info.el.style.display = ''; 
-                        return;
-                    }
-
-                    // 2. Si triem "tots", ho ensenyem tot
                     if (cerca === 'tots') {
                         info.el.style.display = '';
                         return;
                     }
 
-                    // 3. FILTRE PER ID (Relació Pare-Fill)
-                    // Obtenim els nous camps que hem enviat des de la view de Python
-                    const idInst = String(info.event.extendedProps.id_inst || "");
-                    const idPare = String(info.event.extendedProps.id_pare || "");
+                    // Filtre per ID (Pare o Fill)
+                    const idInst = String(props.id_inst || "");
+                    const idPare = String(props.id_pare || "");
 
-                    // Si l'ID de la pista coincideix amb la selecció
-                    // O si el seu pare és el seleccionat (ex: triem Pavelló i la pista és filla)
                     if (idInst === cerca || idPare === cerca) {
                         info.el.style.display = '';
                     } else {
@@ -594,14 +583,8 @@
 
         function filtrarPerDesplegable(valor) {
             if (calendar) {
-                // 'valor' ja és l'ID que ve del selector (ex: "5" o "tots")
-                
-                // Simplement renderitzem. Com que el eventDidMount ara consulta 
-                // directament el valor del selector, s'aplicarà el filtre automàticament.
-                calendar.render();
-
-                // Si vols assegurar-te que el calendari es posi al dia amb les dades de l'API:
-                // calendar.refetchEvents(); 
+                // Això fa que s'executi de nou el 'eventDidMount' per a cada reserva
+                calendar.render(); 
             }
         }
 
