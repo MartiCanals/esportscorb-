@@ -567,14 +567,22 @@ def accio_reserva(request):
         titol = request.POST.get('titol')
         inici = request.POST.get('inici')
         final = request.POST.get('final')
+        # Recollim la ID que enviem des del JS
+        instalacio_id = request.POST.get('instalacio_id') 
+        tipus = request.POST.get('tipus', 'reserva')
+
+        # Busquem la instal·lació real, si no la troba, posem la primera per seguretat
+        instalacio_real = Instalacio.objects.filter(id=instalacio_id).first() or Instalacio.objects.first()
         
-        reserva = Reserva.objects.create(
+        nova_reserva = Reserva.objects.create(
             activitat=titol,
             inici=inici,
             final=final,
-            instalacio=Instalacio.objects.first(),
+            instalacio=instalacio_real,
             entitat=request.user,
-            estat='validada'
+            estat='validada',
+            # Si el teu model de Reserva té un camp 'tipus', l'assignem aquí:
+            # tipus=tipus 
         )
         return JsonResponse({
             'status': 'ok',
