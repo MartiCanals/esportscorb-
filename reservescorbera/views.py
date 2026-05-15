@@ -132,8 +132,7 @@ def fer_reserva(request, instalacio_id):
         dt_inici = timezone.make_aware(datetime.strptime(f"{dia} {hora_inici}", "%Y-%m-%d %H:%M"))
         dt_fi = timezone.make_aware(datetime.strptime(f"{dia} {hora_fi}", "%Y-%m-%d %H:%M"))
 
-        # 1. PROTECCIÓ ANTI-DUPLICATS (Evita el problema del doble clic/fantasma)
-        # Si ja existeix exactament la mateixa reserva per aquest usuari, no fem res.
+        # 1. PROTECCIÓ ANTI-DUPLICATS
         duplicat_propi = Reserva.objects.filter(
             entitat=request.user,
             instalacio=instalacio,
@@ -142,10 +141,9 @@ def fer_reserva(request, instalacio_id):
         ).exists()
 
         if duplicat_propi:
-            # Si és un duplicat de la mateixa persona, el portem a l'inici sense avisar d'error
             return redirect('inici')
 
-        # 2. VALIDACIÓ DE SOLAPAMENT (Amb altres reserves)
+        # 2. VALIDACIÓ DE SOLAPAMENT
         solapament = Reserva.objects.filter(
             instalacio=instalacio,
             estat__in=['pendent', 'validada']
@@ -161,7 +159,7 @@ def fer_reserva(request, instalacio_id):
         nom_usuari = request.user.username.upper()
         titol_visible = f"{nom_usuari}: {nom_activitat}"
 
-        Reserva.objects.create(
+        nova_reserva = Reserva.objects.create(
             entitat=request.user,
             instalacio=instalacio,
             activitat=titol_visible,
@@ -169,6 +167,40 @@ def fer_reserva(request, instalacio_id):
             final=dt_fi,
             estat='pendent'
         )
+        
+        # --- ENVIAMENT DE MAIL NOMÉS AL GRUP 'Tècnic' ---
+        # Busquem els correus dels usuaris actius que pertanyen al grup 'Tècnic'
+        tecnics_emails = User.objects.filter(
+            groups__name='Tècnic', 
+            is_active=True
+        ).exclude(email='').values_list('email', flat=True)
+
+        if tecnics_emails:
+            assumpte = f"Nova sol·licitud de reserva: {instalacio.nom}"
+            missatge = f"""
+Hola,
+
+L'entitat {nom_usuari} ha realitzat una nova reserva que requereix la teva validació:
+
+- Instal·lació: {instalacio.nom}
+- Dia: {dt_inici.strftime('%d/%m/%Y')}
+- Horari: {hora_inici} a {hora_fi}
+- Activitat: {nom_activitat}
+
+Pots validar o rebutjar aquesta reserva des del panell de Gestió Tècnica de la web.
+            """
+            try:
+                send_mail(
+                    assumpte,
+                    missatge,
+                    settings.DEFAULT_FROM_EMAIL,
+                    list(tecnics_emails),
+                    fail_silently=True,
+                )
+            except Exception:
+                # Si falla el correu, no aturem l'experiència de l'usuari
+                pass
+        # ------------------------------------------------
         
         messages.success(request, "Sol·licitud enviada correctament!")
         return redirect('inici')
