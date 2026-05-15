@@ -10,14 +10,19 @@ class Instalacio(models.Model):
     hora_obertura = models.TimeField(default="08:00")
     hora_tancament = models.TimeField(default="23:00")
 
-    # Camp per gestionar la jerarquia (Pare/Fills)
+    # --- AFEGEIX AQUESTS 3 CAMPS ARA ---
+    obert_cap_setmana = models.BooleanField(default=True)
+    hora_obertura_finde = models.TimeField(null=True, blank=True)
+    hora_tancament_finde = models.TimeField(null=True, blank=True)
+    # -----------------------------------
+
     parent = models.ForeignKey(
         'self', 
         on_delete=models.CASCADE, 
         null=True, 
         blank=True, 
         related_name='sub_espais',
-        help_text="Si aquest és un sub-espai, tria la instal·lació principal (Ex: El Camp de Futbol 11)."
+        help_text="Si aquest és un sub-espai, tria la instal·lació principal."
     )
 
     def __str__(self):
