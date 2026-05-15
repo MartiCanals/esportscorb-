@@ -593,8 +593,24 @@
 
         function filtrarPerDesplegable(valor) {
             if (calendar) {
-                // Això fa que s'executi de nou el 'eventDidMount' per a cada reserva
-                calendar.render(); 
+                const cerca = String(valor); // El valor que arriba del selector
+
+                calendar.getEvents().forEach(ev => {
+                    const idInst = String(ev.extendedProps.id_inst || "");
+                    const idPare = String(ev.extendedProps.id_pare || "");
+                    const tipus = ev.extendedProps.tipus;
+
+                    // Decidim si es mostra o s'amaga
+                    const esTots = (cerca === 'tots');
+                    const esCoincidencia = (idInst === cerca || idPare === cerca);
+                    const esExcepcio = (tipus === 'extra' || tipus === 'conserge');
+
+                    if (esTots || esCoincidencia || esExcepcio) {
+                        ev.setProp('display', 'auto'); // Es mostra
+                    } else {
+                        ev.setProp('display', 'none'); // S'amaga de veritat
+                    }
+                });
             }
         }
 
