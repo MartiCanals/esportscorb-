@@ -21,8 +21,7 @@
         .form-control { background-color: #222; border: 1px solid #444; color: white; }
         .form-control:focus { background-color: #2a2a2a; border-color: #d4af37; color: white; box-shadow: none; }
         
-        /* Estil per a camps desactivats */
-        .form-control:disabled { background-color: #111; border-color: #333; color: #666; opacity: 0.6; cursor: not-allowed; }
+        .form-control:disabled, .form-check-input:disabled { background-color: #111; border-color: #333; color: #666; opacity: 0.6; cursor: not-allowed; }
 
         .btn-save { background-color: #d4af37; color: black; font-weight: 800; border: none; }
         .btn-save:hover { background-color: #bfa030; }
@@ -31,12 +30,16 @@
         .list-group-item { background-color: #2a2a2a; border: 1px solid #444; color: white; transition: 0.3s; }
         .list-group-item:hover { background-color: #333; border-color: #d4af37; }
         .parent-alert { border: 1px solid #0dcaf0; color: #0dcaf0; background: rgba(13, 202, 240, 0.1); }
+        
+        /* Estil switch cap de setmana */
+        .finde-config { background-color: #222; border-radius: 10px; padding: 15px; margin-top: 15px; }
+        .form-check-input:checked { background-color: #d4af37; border-color: #d4af37; }
     </style>
 </head>
 <body>
     <div class="container mb-5">
         <div class="row justify-content-center">
-            <div class="col-md-7">
+            <div class="col-md-8">
                 <div class="card-edit shadow">
                     <h2 class="text-center mb-4" style="color: #d4af37; font-weight: 800;">EDITAR PISTA</h2>
                     
@@ -50,8 +53,6 @@
                     </div>
                     {% endif %}
 
-                    <hr style="border-color: #444;">
-                    
                     <form method="POST" enctype="multipart/form-data">
                         {% csrf_token %}
                         
@@ -76,21 +77,52 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Hora d'obertura {% if instalacio.parent %}(Heretada){% endif %}</label>
+                                <label class="form-label">Obertura Laborables {% if instalacio.parent %}(Heretada){% endif %}</label>
                                 <input type="time" name="hora_obertura" class="form-control" 
                                        value="{{ instalacio.hora_obertura|time:'H:i' }}" 
                                        {% if instalacio.parent %}disabled{% endif %}>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Hora de tancament {% if instalacio.parent %}(Heretada){% endif %}</label>
+                                <label class="form-label">Tancament Laborables {% if instalacio.parent %}(Heretada){% endif %}</label>
                                 <input type="time" name="hora_tancament" class="form-control" 
                                        value="{{ instalacio.hora_tancament|time:'H:i' }}" 
                                        {% if instalacio.parent %}disabled{% endif %}>
                             </div>
                         </div>
 
+                        <div class="finde-config">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <label class="form-label mb-0">Horari Cap de Setmana {% if instalacio.parent %}(Heretat){% endif %}</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="obertFinde" name="obert_cap_setmana" 
+                                           {% if instalacio.obert_cap_setmana %}checked{% endif %} 
+                                           {% if instalacio.parent %}disabled{% endif %}
+                                           onchange="toggleHorariFinde()">
+                                    <label class="form-check-label text-white small" for="obertFinde">Obert</label>
+                                </div>
+                            </div>
+
+                            <div id="seccioFinde" class="row">
+                                <div class="col-md-6 mb-2">
+                                    <label class="small text-muted fw-bold">Obertura (Diss/Dium)</label>
+                                    <input type="time" name="hora_obertura_finde" id="h_ob_finde" class="form-control" 
+                                           value="{{ instalacio.hora_obertura_finde|time:'H:i' }}"
+                                           {% if instalacio.parent %}disabled{% endif %}>
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="small text-muted fw-bold">Tancament (Diss/Dium)</label>
+                                    <input type="time" name="hora_tancament_finde" id="h_tan_finde" class="form-control" 
+                                           value="{{ instalacio.hora_tancament_finde|time:'H:i' }}"
+                                           {% if instalacio.parent %}disabled{% endif %}>
+                                </div>
+                            </div>
+                            <div id="missatgeTancat" class="text-warning small mt-2" style="display: none;">
+                                <i class="bi bi-door-closed-fill"></i> Tancat els caps de setmana. No es podrà reservar.
+                            </div>
+                        </div>
+
                         {% if sub_espais %}
-                        <div class="sub-zones-section mt-4 mb-4">
+                        <div class="sub-zones-section mt-4">
                             <h6 class="text-white mb-3" style="font-weight: 800;">
                                 <i class="bi bi-diagram-3-fill me-2" style="color: #d4af37;"></i>SUB-ESPAIS VINCULATS
                             </h6>
@@ -114,5 +146,28 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function toggleHorariFinde() {
+            const obert = document.getElementById('obertFinde').checked;
+            const seccio = document.getElementById('seccioFinde');
+            const missatge = document.getElementById('missatgeTancat');
+            const inputs = seccio.querySelectorAll('input');
+            const isParent = {% if instalacio.parent %}true{% else %}false{% endif %};
+
+            if (obert) {
+                seccio.style.opacity = "1";
+                missatge.style.display = 'none';
+                if (!isParent) inputs.forEach(i => i.disabled = false);
+            } else {
+                seccio.style.opacity = "0.3";
+                missatge.style.display = 'block';
+                inputs.forEach(i => i.disabled = true);
+            }
+        }
+
+        // Execució al carregar per aplicar l'estat inicial
+        document.addEventListener('DOMContentLoaded', toggleHorariFinde);
+    </script>
 </body>
 </html>

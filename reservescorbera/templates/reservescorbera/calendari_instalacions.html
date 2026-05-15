@@ -19,7 +19,6 @@
         .header-section h1 span { color: var(--accent); }
         .back-link { display: inline-flex; align-items: center; color: var(--accent); text-decoration: none; font-weight: 600; margin-bottom: 20px; }
 
-        /* Alerta d'error */
         .alert-error-custom {
             border-radius: 12px; border-left: 6px solid #dc3545; background-color: white;
             box-shadow: 0 5px 15px rgba(220, 53, 69, 0.1); color: #1a1a1a; margin-bottom: 30px;
@@ -32,7 +31,6 @@
         }
         .inst-card:hover { transform: translateY(-10px); }
 
-        /* Contenidor d'imatge compatible amb Cloudinary */
         .inst-img-wrapper { 
             height: 200px; width: 100%; overflow: hidden; background: #e9ecef;
             display: flex; align-items: center; justify-content: center;
@@ -51,6 +49,8 @@
 
         .modal-header { background: var(--primary); color: white; border-bottom: 3px solid var(--accent); }
         .sub-selection-box { background: #fdfaf0; border: 1px solid #d4af37; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        
+        .badge-finde { background: #d4af37; color: #1a1a1a; font-size: 0.7rem; padding: 3px 8px; border-radius: 5px; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -65,13 +65,11 @@
     <div class="container">
         {% if messages %}
             {% for message in messages %}
-                {% if message.tags == 'error' or message.tags == 'danger' %}
                 <div class="alert alert-danger alert-dismissible fade show alert-error-custom" role="alert">
                     <i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-                {% endif %}
             {% endfor %}
         {% endif %}
 
@@ -81,22 +79,36 @@
                 <div class="inst-card">
                     <div class="inst-img-wrapper">
                         {% if inst.imatge %}
-                            <img src="{{ inst.imatge.url }}" class="inst-img" alt="{{ inst.nom }}" onerror="this.src='{% static 'img/default-inst.jpg' %}'">
+                            <img src="{{ inst.imatge.url }}" class="inst-img" alt="{{ inst.nom }}">
                         {% else %}
-                            <div class="text-center">
-                                <i class="bi bi-building-fill text-muted fs-1"></i>
-                                <p class="small text-muted mb-0">Sense imatge</p>
-                            </div>
+                            <i class="bi bi-building-fill text-muted fs-1"></i>
                         {% endif %}
                     </div>
                     <div class="inst-body">
                         <div>
                             <h3 class="inst-title">{{ inst.nom }}</h3>
-                            <p class="text-muted small">Horari: {{ inst.hora_obertura|time:"H:i" }} - {{ inst.hora_tancament|time:"H:i" }}</p>
+                            <p class="text-muted small mb-1"><i class="bi bi-clock me-1"></i> Lu-Vi: {{ inst.hora_obertura|time:"H:i" }} - {{ inst.hora_tancament|time:"H:i" }}</p>
+                            <p class="text-muted small">
+                                <i class="bi bi-calendar-week me-1"></i> Cap de setmana: 
+                                {% if inst.obert_cap_setmana %}
+                                    <span class="text-success">{{ inst.hora_obertura_finde|time:"H:i" }} - {{ inst.hora_tancament_finde|time:"H:i" }}</span>
+                                {% else %}
+                                    <span class="text-danger">TANCAT</span>
+                                {% endif %}
+                            </p>
                         </div>
                         
                         <button class="btn-reserve" type="button"
-                            onclick="obrirModalReserva('{{ inst.id }}', '{{ inst.nom|escapejs }}', '{{ inst.hora_obertura|time:'H:i' }}', '{{ inst.hora_tancament|time:'H:i' }}', [ {% for sub in inst.sub_espais.all %} {id: '{{ sub.id }}', nom: '{{ sub.nom|escapejs }}'}, {% endfor %} ])">
+                            onclick="obrirModalReserva(
+                                '{{ inst.id }}', 
+                                '{{ inst.nom|escapejs }}', 
+                                '{{ inst.hora_obertura|time:'H:i' }}', 
+                                '{{ inst.hora_tancament|time:'H:i' }}', 
+                                '{{ inst.obert_cap_setmana|yesno:'true,false' }}',
+                                '{{ inst.hora_obertura_finde|time:'H:i'|default:'00:00' }}',
+                                '{{ inst.hora_tancament_finde|time:'H:i'|default:'00:00' }}',
+                                [ {% for sub in inst.sub_espais.all %} {id: '{{ sub.id }}', nom: '{{ sub.nom|escapejs }}'}, {% endfor %} ]
+                            )">
                             <i class="bi bi-calendar-check me-2"></i> Reservar ara
                         </button>
                     </div>
@@ -129,6 +141,7 @@
                     <div class="mb-4">
                         <label class="form-label fw-bold small">DIA:</label>
                         <input type="date" id="dataReserva" class="form-control" min="{{ avui|date:'Y-m-d' }}" onchange="buscarHoresDisponibles()">
+                        <div id="infoTancat" class="text-danger small mt-2 fw-bold" style="display:none;">⚠️ Aquesta pista tanca els caps de setmana.</div>
                     </div>
 
                     <div id="seccioHores" style="display: none;">
@@ -151,23 +164,27 @@
     <script>
         let modalObj = null;
         let idActual = null;
-        let hOberturaActual = "";
-        let hTancamentActual = "";
+        let hOberturaLV = "", hTancamentLV = "";
+        let obertFinde = false, hObertFinde = "", hTancamentFinde = "";
         let horesOcupadesActuals = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             modalObj = new bootstrap.Modal(document.getElementById('modalReserva'));
         });
 
-        function obrirModalReserva(id, nom, obertura, tancament, fills) {
+        function obrirModalReserva(id, nom, obertura, tancament, obertF, obertF_H, tancatF_H, fills) {
             idActual = id;
-            hOberturaActual = obertura;
-            hTancamentActual = tancament;
+            hOberturaLV = obertura;
+            hTancamentLV = tancament;
+            obertFinde = (obertF === 'true');
+            hObertFinde = obertF_H;
+            hTancamentFinde = tancatF_H;
 
             document.getElementById('nomInstalacioModal').innerText = nom;
             document.getElementById('nomActivitat').value = '';
             document.getElementById('dataReserva').value = '';
             document.getElementById('seccioHores').style.display = 'none';
+            document.getElementById('infoTancat').style.display = 'none';
 
             const divSub = document.getElementById('divSubEspais');
             const selectSub = document.getElementById('selectSubEspai');
@@ -184,31 +201,45 @@
             modalObj.show();
         }
 
-        function canviarPista() {
-            idActual = document.getElementById('selectSubEspai').value;
-            if (document.getElementById('dataReserva').value) buscarHoresDisponibles();
-        }
-
         async function buscarHoresDisponibles() {
-            const data = document.getElementById('dataReserva').value;
-            if (!data) return;
-            const resp = await fetch(`/api/hores-ocupades/?instalacio=${idActual}&data=${data}&t=${Date.now()}`);
+            const dataInput = document.getElementById('dataReserva').value;
+            if (!dataInput) return;
+
+            const dataObj = new Date(dataInput);
+            const diaSetmana = dataObj.getDay(); // 0 Diumenge, 6 Dissabte
+            const esFinde = (diaSetmana === 0 || diaSetmana === 6);
+
+            // Bloqueig si està tancat el cap de setmana
+            if (esFinde && !obertFinde) {
+                document.getElementById('seccioHores').style.display = 'none';
+                document.getElementById('infoTancat').style.display = 'block';
+                document.getElementById('btnFinalitzar').disabled = true;
+                return;
+            }
+
+            document.getElementById('infoTancat').style.display = 'none';
+            const resp = await fetch(`/api/hores-ocupades/?instalacio=${idActual}&data=${dataInput}&t=${Date.now()}`);
             horesOcupadesActuals = await resp.json();
+            
             document.getElementById('seccioHores').style.display = 'block';
-            poblarSelects();
+            poblarSelects(esFinde);
         }
 
-        function poblarSelects() {
+        function poblarSelects(esFinde) {
             const sI = document.getElementById('selectInici');
             const sF = document.getElementById('selectFinal');
             sI.innerHTML = '<option value="">Inici...</option>';
             sF.innerHTML = '<option value="">Final...</option>';
             sF.disabled = true;
 
-            let [hO, mO] = hOberturaActual.split(':').map(Number);
-            let [hT, mT] = hTancamentActual.split(':').map(Number);
+            // Decidir quins horaris fem servir
+            let hO = esFinde ? hObertFinde : hOberturaLV;
+            let hT = esFinde ? hTancamentFinde : hTancamentLV;
 
-            for (let min = hO * 60 + mO; min <= hT * 60 + mT - 15; min += 15) {
+            let [h_inici, m_inici] = hO.split(':').map(Number);
+            let [h_fi, m_fi] = hT.split(':').map(Number);
+
+            for (let min = h_inici * 60 + m_inici; min <= h_fi * 60 + m_fi - 15; min += 15) {
                 let h = Math.floor(min/60).toString().padStart(2,'0'), m = (min%60).toString().padStart(2,'0');
                 let hs = `${h}:${m}`;
                 sI.innerHTML += `<option value="${hs}" ${horesOcupadesActuals.includes(hs) ? 'disabled style="color:#ccc"' : ''}>${hs}</option>`;
@@ -218,8 +249,8 @@
                 sF.innerHTML = '<option value="">Final...</option>';
                 if (!this.value) { sF.disabled = true; return; }
                 sF.disabled = false;
-                let [hI, mI] = this.value.split(':').map(Number);
-                for (let min = (hI*60+mI)+15; min <= hT * 60 + mT; min += 15) {
+                let [hSelected, mSelected] = this.value.split(':').map(Number);
+                for (let min = (hSelected*60+mSelected)+15; min <= h_fi * 60 + m_fi; min += 15) {
                     let h = Math.floor(min/60).toString().padStart(2,'0'), m = (min%60).toString().padStart(2,'0');
                     let hs = `${h}:${m}`;
                     let hAnt = Math.floor((min-15)/60).toString().padStart(2,'0'), mAnt = ((min-15)%60).toString().padStart(2,'0');
@@ -243,6 +274,11 @@
             const i = document.getElementById('selectInici').value;
             const f = document.getElementById('selectFinal').value;
             window.location.href = `/reserva/${idActual}/?data=${d}&hora_inici=${i}&hora_fi=${f}&nom_activitat=${n}`;
+        }
+        
+        function canviarPista() {
+            idActual = document.getElementById('selectSubEspai').value;
+            if (document.getElementById('dataReserva').value) buscarHoresDisponibles();
         }
     </script>
 </body>
