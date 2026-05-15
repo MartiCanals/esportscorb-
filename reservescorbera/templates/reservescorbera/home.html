@@ -144,17 +144,19 @@
                 buttonText: { today: 'Avui', month: 'Mes', week: 'Setmana', day: 'Dia' },
                 events: '/api/reserves/',
 
-                // Lògica de filtratge que s'executa cada cop que es dibuixa un esdeveniment
+                // AQUESTA FUNCIÓ S'EXECUTA CADA COP QUE UN EVENT ES MOSTRA
                 eventDidMount: function(info) {
                     const selector = document.getElementById('selector-instalacio');
+                    if (!selector) return;
+
                     const cerca = selector.value.toLowerCase().trim();
                     const nomReserva = (info.event.extendedProps.instalacio || "").toLowerCase().trim();
 
-                    // Si estem filtrant i el nom de la reserva NO inclou el text seleccionat, l'ocultem
+                    // FILTRE INTEL·LIGENT: Si no és "tots" i el nom NO conté la paraula buscada, amaguem
                     if (cerca !== 'tots' && !nomReserva.includes(cerca)) {
                         info.el.style.display = 'none';
                     } else {
-                        info.el.style.display = ''; // Per defecte es veu
+                        info.el.style.display = ''; // Forcem que es vegi si coincideix
                     }
                 },
 
@@ -178,7 +180,7 @@
             const label = document.getElementById('photo-name');
             const dataImg = opt.getAttribute('data-img');
 
-            // Actualització visual de la sidebar (Fotos)
+            // 1. Gestió visual de la sidebar
             if (val === 'tots') {
                 container.style.display = 'none';
             } else {
@@ -194,9 +196,11 @@
                 }
             }
 
-            // Forçar al calendari a tornar a passar pel eventDidMount
+            // 2. ACTUALITZACIÓ DEL CALENDARI
             if (calendar) {
-                calendar.render(); 
+                // "refetchEvents" és el mètode més segur per forçar que el calendari 
+                // torni a passar pel "eventDidMount" i apliqui el filtre correctament.
+                calendar.refetchEvents();
             }
         }
     </script>

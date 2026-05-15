@@ -581,25 +581,12 @@
         }
 
         function filtrarPerDesplegable(valor) {
-            const cerca = valor.toLowerCase().trim();
-            
-            calendar.getEvents().forEach(ev => {
-                const nomInst = (ev.extendedProps.instalacio || "").toLowerCase().trim();
-                const tipus = ev.extendedProps.tipus;
-
-                // Les notes de conserge i extres es veuen sempre
-                if (tipus === 'extra' || tipus === 'conserge' || ev.allDay) {
-                    ev.setProp('display', 'auto');
-                    return;
-                }
-
-                // EL CANVI: Ara fem servir .includes() en comptes de ===
-                if (cerca === 'tots' || nomInst.includes(cerca)) {
-                    ev.setProp('display', 'auto');
-                } else {
-                    ev.setProp('display', 'none');
-                }
-            });
+            if (calendar) {
+                // En lloc d'anar un per un manualment, forcem al calendari 
+                // a tornar a processar tots els events a la vegada.
+                // Això farà que s'executi automàticament l' 'eventDidMount' per a cadascun.
+                calendar.render(); 
+            }
         }
 
         function obrirGestioConserges() {

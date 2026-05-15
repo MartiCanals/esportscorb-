@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ca">
 <head>
@@ -19,10 +20,13 @@
         .form-label { color: #d4af37; font-weight: bold; text-transform: uppercase; font-size: 0.8rem; }
         .form-control { background-color: #222; border: 1px solid #444; color: white; }
         .form-control:focus { background-color: #2a2a2a; border-color: #d4af37; color: white; box-shadow: none; }
+        
+        /* Estil per a camps desactivats */
+        .form-control:disabled { background-color: #111; border-color: #333; color: #666; opacity: 0.6; cursor: not-allowed; }
+
         .btn-save { background-color: #d4af37; color: black; font-weight: 800; border: none; }
         .btn-save:hover { background-color: #bfa030; }
         
-        /* Estils nous per a la jerarquia */
         .sub-zones-section { background-color: #222; border-radius: 10px; padding: 15px; border-left: 4px solid #d4af37; }
         .list-group-item { background-color: #2a2a2a; border: 1px solid #444; color: white; transition: 0.3s; }
         .list-group-item:hover { background-color: #333; border-color: #d4af37; }
@@ -40,8 +44,8 @@
                     <div class="alert parent-alert d-flex align-items-center mb-4">
                         <i class="bi bi-info-circle-fill me-2"></i>
                         <div>
-                            Aquesta és una sub-zona de: <strong>{{ instalacio.parent.nom }}</strong>
-                            <a href="{% url 'editar_instalacio' instalacio.parent.id %}" class="btn btn-sm btn-outline-info ms-2">Anar al Pare</a>
+                            Aquesta és una <strong>sub-zona</strong>. El color, la imatge i els horaris estan vinculats a la pista principal.
+                            <a href="{% url 'editar_instalacio' instalacio.parent.id %}" class="btn btn-sm btn-outline-info ms-2">Editar Pare: {{ instalacio.parent.nom }}</a>
                         </div>
                     </div>
                     {% endif %}
@@ -58,23 +62,30 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Color al calendari</label>
-                                <input type="color" name="color" class="form-control form-control-color w-100" value="{{ instalacio.color }}">
+                                <label class="form-label">Color al calendari {% if instalacio.parent %}(Heretat){% endif %}</label>
+                                <input type="color" name="color" class="form-control form-control-color w-100" 
+                                       value="{{ instalacio.color }}" 
+                                       {% if instalacio.parent %}disabled{% endif %}>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Imatge (opcional)</label>
-                                <input type="file" name="imatge" class="form-control">
+                                <label class="form-label">Imatge {% if instalacio.parent %}(Heretada){% endif %}</label>
+                                <input type="file" name="imatge" class="form-control" 
+                                       {% if instalacio.parent %}disabled{% endif %}>
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Hora d'obertura</label>
-                                <input type="time" name="hora_obertura" class="form-control" value="{{ instalacio.hora_obertura|time:'H:i' }}">
+                                <label class="form-label">Hora d'obertura {% if instalacio.parent %}(Heretada){% endif %}</label>
+                                <input type="time" name="hora_obertura" class="form-control" 
+                                       value="{{ instalacio.hora_obertura|time:'H:i' }}" 
+                                       {% if instalacio.parent %}disabled{% endif %}>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Hora de tancament</label>
-                                <input type="time" name="hora_tancament" class="form-control" value="{{ instalacio.hora_tancament|time:'H:i' }}">
+                                <label class="form-label">Hora de tancament {% if instalacio.parent %}(Heretada){% endif %}</label>
+                                <input type="time" name="hora_tancament" class="form-control" 
+                                       value="{{ instalacio.hora_tancament|time:'H:i' }}" 
+                                       {% if instalacio.parent %}disabled{% endif %}>
                             </div>
                         </div>
 
