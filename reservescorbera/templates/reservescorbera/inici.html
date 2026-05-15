@@ -585,6 +585,15 @@
             const cerca = valor.toLowerCase().trim();
             calendar.getEvents().forEach(ev => {
                 const nomInst = (ev.extendedProps.instalacio || "").toLowerCase().trim();
+                const tipus = ev.extendedProps.tipus;
+
+                // Les notes de conserge i extres es veuen sempre
+                if (tipus === 'extra' || tipus === 'conserge' || ev.allDay) {
+                    ev.setProp('display', 'auto');
+                    return;
+                }
+
+                // Filtre per "Conté" (Pavelló mostrarà Pavelló - Pista 1)
                 if (cerca === 'tots' || nomInst.includes(cerca)) {
                     ev.setProp('display', 'auto');
                 } else {

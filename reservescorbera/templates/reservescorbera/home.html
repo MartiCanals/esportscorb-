@@ -152,7 +152,7 @@
         });
 
         function actualitzarTot(select) {
-            const val = select.value;
+            const val = select.value; // El nom del pare (ex: "pavelló")
             const opt = select.options[select.selectedIndex];
             const container = document.getElementById('photo-container');
             const img = document.getElementById('inst-photo');
@@ -160,6 +160,7 @@
             const label = document.getElementById('photo-name');
             const dataImg = opt.getAttribute('data-img');
 
+            // 1. Gestió de la imatge de la columna lateral
             if (val === 'tots') {
                 container.style.display = 'none';
             } else {
@@ -176,10 +177,21 @@
                 }
             }
 
+            // 2. FILTRE INTEL·LIGENT DEL CALENDARI
             const cerca = val.toLowerCase().trim();
+            
             calendar.getEvents().forEach(ev => {
-                const nom = (ev.extendedProps.instalacio || "").toLowerCase().trim();
-                ev.setProp('display', (cerca === 'tots' || nom.includes(cerca)) ? 'auto' : 'none');
+                // Obtenim el nom de la instal·lació on s'ha fet la reserva
+                const nomReserva = (ev.extendedProps.instalacio || "").toLowerCase().trim();
+                
+                // Si triem "tots", ho mostrem tot.
+                // Si triem una instal·lació, mostrem l'esdeveniment si el seu nom CONTÉ el que hem buscat.
+                // Exemple: Si busquem "pavelló", mostrarà "pavelló", "pavelló - pista 1" i "pavelló - pista 2".
+                if (cerca === 'tots' || nomReserva.includes(cerca)) {
+                    ev.setProp('display', 'auto');
+                } else {
+                    ev.setProp('display', 'none');
+                }
             });
         }
     </script>
