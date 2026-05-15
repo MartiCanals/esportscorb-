@@ -361,21 +361,31 @@
                     const selector = document.getElementById('selector-instalacio');
                     if (!selector) return;
 
-                    const cerca = String(selector.value); // L'ID del selector
-                    const props = info.event.extendedProps;
-
+                    // Netegem el valor del selector (treiem espais)
+                    const cerca = String(selector.value).trim();
+                    
+                    // Si és "tots", no mirem res més
                     if (cerca === 'tots') {
                         info.el.style.display = '';
                         return;
                     }
 
-                    // Filtre per ID (Pare o Fill)
-                    const idInst = String(props.id_inst || "");
-                    const idPare = String(props.id_pare || "");
-
-                    if (idInst === cerca || idPare === cerca) {
+                    // Excepcions (avisos de conserge o extres)
+                    const tipus = info.event.extendedProps.tipus;
+                    if (tipus === 'extra' || tipus === 'conserge' || info.event.allDay) {
                         info.el.style.display = '';
+                        return;
+                    }
+
+                    // Agafem els IDs i els convertim a String net
+                    const idInst = String(info.event.extendedProps.id_inst || "").trim();
+                    const idPare = String(info.event.extendedProps.id_pare || "").trim();
+
+                    // LA PROVA DE FOC:
+                    if (idInst === cerca || idPare === cerca) {
+                        info.el.style.display = ''; 
                     } else {
+                        // Si no coincideix, l'amaguem de veritat
                         info.el.style.display = 'none';
                     }
                 },
