@@ -2,29 +2,40 @@
 <html lang="ca">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nova Instal·lació - EsportsCorb</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
         .card { border: none; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .btn-save { background: #1a1a1a; color: #d4af37; border: 2px solid #d4af37; font-weight: bold; }
-        .btn-save:hover { background: #d4af37; color: #1a1a1a; }
+        .btn-save { background: #1a1a1a; color: #d4af37; border: 2px solid #d4af37; font-weight: bold; transition: 0.3s; }
+        .btn-save:hover { background: #d4af37; color: #1a1a1a; transform: translateY(-2px); }
         .form-label { font-weight: bold; color: #333; }
+        .subzone-box { 
+            display: none; 
+            background: #f8f9fa; 
+            border-left: 4px solid #d4af37; 
+            padding: 20px; 
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .header-title { border-left: 5px solid #d4af37; padding-left: 15px; }
+        .form-control:focus { border-color: #d4af37; box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.25); }
     </style>
 </head>
 <body>
     <div class="container py-5">
         <div class="row justify-content-center">
-            <div class="col-md-7">
+            <div class="col-md-8 col-lg-7">
                 <div class="card p-4">
-                    <h2 class="mb-4" style="border-left: 5px solid #d4af37; padding-left: 15px;">Crear Nova Instal·lació</h2>
+                    <h2 class="mb-4 header-title">Crear Nova Instal·lació</h2>
                     
                     <form method="POST" enctype="multipart/form-data">
                         {% csrf_token %}
                         
                         <div class="mb-3">
-                            <label class="form-label">Nom de la Instal·lació</label>
-                            <input type="text" name="nom" class="form-control" placeholder="Ex: Pavelló Central" required>
+                            <label class="form-label">Nom de la Instal·lació Principal</label>
+                            <input type="text" name="nom" class="form-control" placeholder="Ex: Camp de Futbol 11" required>
                         </div>
 
                         <div class="row">
@@ -39,9 +50,9 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Imatge representativa</label>
+                            <label class="form-label">Imatge de la instal·lació</label>
                             <input type="file" name="imatge" class="form-control" accept="image/*">
-                            <div class="form-text">Aquesta foto sortirà al formulari de reserva.</div>
+                            <div class="form-text">Aquesta imatge serà la que veuran els usuaris en reservar.</div>
                         </div>
 
                         <div class="mb-4">
@@ -49,14 +60,51 @@
                             <input type="color" name="color" class="form-control form-control-color w-100" value="#d4af37">
                         </div>
 
-                        <div class="d-flex justify-content-between align-items: center;">
-                            <a href="{% url 'gestio_tecnica' %}" class="text-muted text-decoration-none">← Tornar</a>
-                            <button type="submit" class="btn btn-save px-5">CREAR ARA</button>
+                        <hr class="my-4">
+                        <div class="mb-3 form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="teZones" name="te_zones" onchange="toggleZones()">
+                            <label class="form-check-label fw-bold" for="teZones">Té sub-espais o zones divisibles?</label>
+                        </div>
+
+                        <div id="seccioZones" class="subzone-box">
+                            <label class="form-label text-dark">Noms de les zones (separats per comes)</label>
+                            <textarea name="noms_subzones" class="form-control" rows="2" placeholder="Ex: Futbol 7 - 1, Futbol 7 - 2"></textarea>
+                            <div class="form-text mt-2 text-muted">
+                                <strong>Nota:</strong> Es crearan automàticament amb el mateix color, horari i foto que la principal, vinculant-les entre elles per evitar solapaments.
+                            </div>
+                        </div>
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'gestio_tecnica' %}" class="text-muted text-decoration-none">
+                                <small>← Tornar a Gestió Tècnica</small>
+                            </a>
+                            <button type="submit" class="btn btn-save px-5 shadow-sm">CREAR INSTAL·LACIÓ</button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+
+    <script>
+        function toggleZones() {
+            const seccio = document.getElementById('seccioZones');
+            const checkbox = document.getElementById('teZones');
+            if (checkbox.checked) {
+                seccio.style.display = 'block';
+                // Animació d'entrada simple
+                seccio.style.opacity = 0;
+                let op = 0;
+                let timer = setInterval(function () {
+                    if (op >= 1) clearInterval(timer);
+                    seccio.style.opacity = op;
+                    op += 0.1;
+                }, 20);
+            } else {
+                seccio.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>

@@ -17,19 +17,17 @@ import re
 from django.core.mail import send_mail
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 # 1. HOME PÚBLIC
 def home(request):
-    # 1. Tornem a carregar les instal·lacions perquè el menú desplegable les trobi
-    instalacions = Instalacio.objects.all().order_by('nom')
+    # Canviem .all() per .filter(parent__isnull=True)
+    instalacions = Instalacio.objects.filter(parent__isnull=True).order_by('nom')
     
-    # 2. Les fiquem al context
     context = {
         'instalacions': instalacions,
         'avui': timezone.now().date()
     }
-    
-    # 3. Ara el template 'home.html' ja tindrà les dades per al desplegable
     return render(request, 'reservescorbera/home.html', context)
 
 @login_required
@@ -71,7 +69,8 @@ def inici(request):
             conserges = grup_conserge.user_set.all().order_by('username')
 
     # 3. DADES GENERALS
-    instalacions = Instalacio.objects.all().order_by('nom')
+    # Cerca aquesta línia dins de def inici(request):
+    instalacions = Instalacio.objects.filter(parent__isnull=True).order_by('nom')
     les_meves_reserves = Reserva.objects.filter(entitat=request.user).order_by('-inici')
 
     context = {
@@ -133,33 +132,39 @@ def fer_reserva(request, instalacio_id):
         dt_fi = timezone.make_aware(datetime.strptime(f"{dia} {hora_fi}", "%Y-%m-%d %H:%M"))
 
         # 1. PROTECCIÓ ANTI-DUPLICATS
-        duplicat_propi = Reserva.objects.filter(
-            entitat=request.user,
-            instalacio=instalacio,
-            inici=dt_inici,
-            final=dt_fi
-        ).exists()
-
-        if duplicat_propi:
+        if Reserva.objects.filter(entitat=request.user, instalacio=instalacio, inici=dt_inici, final=dt_fi).exists():
             return redirect('inici')
 
-        # 2. VALIDACIÓ DE SOLAPAMENT
+        # 2. VALIDACIÓ DE SOLAPAMENT JERÀRQUIC (Pare i Fills)
+        # Recollim tots els IDs que poden entrar en conflicte:
+        # - La mateixa instal·lació
+        # - El seu pare (si estem reservant una sub-zona)
+        # - Els seus fills (si estem reservant l'espai sencer)
+        ids_en_conflicte = [instalacio.id]
+        
+        if instalacio.parent:
+            ids_en_conflicte.append(instalacio.parent.id)
+            
+        fills_ids = list(instalacio.sub_espais.values_list('id', flat=True))
+        ids_en_conflicte.extend(fills_ids)
+
+        # Mirem si hi ha alguna reserva en qualsevol d'aquests IDs
         solapament = Reserva.objects.filter(
-            instalacio=instalacio,
+            instalacio_id__in=ids_en_conflicte,
             estat__in=['pendent', 'validada']
         ).filter(
             Q(inici__lt=dt_fi, final__gt=dt_inici)
         ).exists()
 
         if solapament:
-            messages.error(request, "Aquesta franja s'ha ocupat. Tria'n una altra.")
+            messages.error(request, "Aquesta franja està ocupada (pot ser per l'espai sencer o una sub-zona).")
             return redirect('calendari_instalacions')
 
         # 3. CREACIÓ DE LA RESERVA
         nom_usuari = request.user.username.upper()
         titol_visible = f"{nom_usuari}: {nom_activitat}"
 
-        nova_reserva = Reserva.objects.create(
+        Reserva.objects.create(
             entitat=request.user,
             instalacio=instalacio,
             activitat=titol_visible,
@@ -168,8 +173,7 @@ def fer_reserva(request, instalacio_id):
             estat='pendent'
         )
         
-        # --- ENVIAMENT DE MAIL NOMÉS AL GRUP 'Tècnic' ---
-        # Busquem els correus dels usuaris actius que pertanyen al grup 'Tècnic'
+        # --- ENVIAMENT DE MAIL AL GRUP 'Tècnic' ---
         tecnics_emails = User.objects.filter(
             groups__name='Tècnic', 
             is_active=True
@@ -177,30 +181,11 @@ def fer_reserva(request, instalacio_id):
 
         if tecnics_emails:
             assumpte = f"Nova sol·licitud de reserva: {instalacio.nom}"
-            missatge = f"""
-Hola,
-
-L'entitat {nom_usuari} ha realitzat una nova reserva que requereix la teva validació:
-
-- Instal·lació: {instalacio.nom}
-- Dia: {dt_inici.strftime('%d/%m/%Y')}
-- Horari: {hora_inici} a {hora_fi}
-- Activitat: {nom_activitat}
-
-Pots validar o rebutjar aquesta reserva des del panell de Gestió Tècnica de la web.
-            """
+            missatge = f"Hola,\n\nL'entitat {nom_usuari} ha reservat {instalacio.nom} per al dia {dt_inici.strftime('%d/%m/%Y')} de {hora_inici} a {hora_fi}.\n\nValida-la al panell de gestió."
             try:
-                send_mail(
-                    assumpte,
-                    missatge,
-                    settings.DEFAULT_FROM_EMAIL,
-                    list(tecnics_emails),
-                    fail_silently=True,
-                )
+                send_mail(assumpte, missatge, settings.DEFAULT_FROM_EMAIL, list(tecnics_emails), fail_silently=True)
             except Exception:
-                # Si falla el correu, no aturem l'experiència de l'usuari
                 pass
-        # ------------------------------------------------
         
         messages.success(request, "Sol·licitud enviada correctament!")
         return redirect('inici')
@@ -212,19 +197,19 @@ Pots validar o rebutjar aquesta reserva des del panell de Gestió Tècnica de la
 # 5. GESTIÓ TÈCNICA (STAFF)
 # BUSCA LA FUNCIÓ QUE COMENÇA A LA LÍNIA 129 I DEIXA-LA AIXÍ:
 @staff_member_required
-def gestio_tecnica(request):  # <--- Canviem el nom perquè coincideixi amb urls.py
+def gestio_tecnica(request):
     totes_les_reserves = Reserva.objects.all().order_by('-inici')[:50]
-    totes_les_instalacions = Instalacio.objects.all().order_by('nom')
     
-    # Filtrem aquí l'usuari marti
+    # CANVI AQUÍ: Filtrem perquè només surtin les principals
+    totes_les_instalacions = Instalacio.objects.filter(parent__isnull=True).order_by('nom')
+    
     usuaris_filtrats = User.objects.exclude(username='marti').order_by('username')
 
     context = {
         'historial': totes_les_reserves,
-        'instalacions': totes_les_instalacions,
+        'instalacions': totes_les_instalacions, # Ara només són els "pares"
         'usuaris': usuaris_filtrats, 
     }
-    
     return render(request, 'reservescorbera/gestio_tecnica.html', context)
 
 # --- NOVA FUNCIÓ PER A TÈCNICS: CREAR INSTAL·LACIÓ ---
@@ -233,19 +218,41 @@ def crear_instalacio(request):
     if request.method == "POST":
         nom = request.POST.get('nom')
         color = request.POST.get('color', '#d4af37')
-        imatge = request.FILES.get('imatge') # request.FILES per a fitxers!
+        imatge = request.FILES.get('imatge')
         h_obertura = request.POST.get('hora_obertura', '08:00')
         h_tancament = request.POST.get('hora_tancament', '23:00')
 
         if nom:
-            Instalacio.objects.create(
+            # 1. Creem la instal·lació principal (el Pare)
+            principal = Instalacio.objects.create(
                 nom=nom,
                 color=color,
                 imatge=imatge,
                 hora_obertura=h_obertura,
                 hora_tancament=h_tancament
             )
-            messages.success(request, f"Instal·lació '{nom}' afegida correctament.")
+
+            # 2. Lògica per a les sub-zones (Fills)
+            te_zones = request.POST.get('te_zones') == 'on'
+            noms_subzones = request.POST.get('noms_subzones')
+
+            if te_zones and noms_subzones:
+                # Separem els noms per comes i netegem espais en blanc
+                llista_noms = [n.strip() for n in noms_subzones.split(',') if n.strip()]
+                
+                for sub_nom in llista_noms:
+                    Instalacio.objects.create(
+                        nom=sub_nom,
+                        color=color,          # Mateix color que la principal
+                        imatge=imatge,        # Mateixa imatge (opcional)
+                        hora_obertura=h_obertura,
+                        hora_tancament=h_tancament,
+                        parent=principal      # Aquí fem el vincle de jerarquia!
+                    )
+                messages.success(request, f"'{nom}' creada amb {len(llista_noms)} sub-espais.")
+            else:
+                messages.success(request, f"Instal·lació '{nom}' afegida correctament.")
+            
             return redirect('gestio_tecnica')
         else:
             messages.error(request, "El nom és obligatori.")
@@ -436,6 +443,7 @@ def eliminar_instalacio(request, pk):
 @staff_member_required
 def editar_instalacio(request, pk):
     instalacio = get_object_or_404(Instalacio, pk=pk)
+    
     if request.method == "POST":
         instalacio.nom = request.POST.get('nom')
         instalacio.color = request.POST.get('color')
@@ -449,7 +457,16 @@ def editar_instalacio(request, pk):
         messages.success(request, f"Instal·lació '{instalacio.nom}' actualitzada.")
         return redirect('gestio_tecnica')
         
-    return render(request, 'reservescorbera/editar_instalacio.html', {'instalacio': instalacio})
+    # Agafem els fills (sub-espais) si en té
+    sub_espais = instalacio.sub_espais.all()
+    
+    context = {
+        'instalacio': instalacio,
+        'sub_espais': sub_espais,
+        'es_sub_espai': instalacio.parent is not None # Per saber si estem editant un fill
+    }
+    
+    return render(request, 'reservescorbera/editar_instalacio.html', context)
 
 # 12. CREAR USUARI/ENTITAT
 from django.contrib.auth.models import User, Group # Important importar Group
@@ -528,19 +545,14 @@ def llista_pendents(request):
 
 @login_required
 def pistes(request):
-    # Agafem les dades que necessita el calendari
-    instalacions = Instalacio.objects.all().order_by('nom')
+    # Només les que no tenen pare
+    instalacions = Instalacio.objects.filter(parent__isnull=True).order_by('nom')
     
     context = {
         'instalacions': instalacions,
         'avui': timezone.now().date()
     }
-    
-    # IMPORTAT: Aquí carreguem directament la plantilla de les pistes
     return render(request, 'reservescorbera/calendari_instalacions.html', context)
-
-    from django.http import JsonResponse
-from django.views.decorators.http import require_POST
 
 @staff_member_required
 @require_POST
@@ -712,35 +724,30 @@ def gestio_plantilla(request):
             h_inici_str = request.POST.get('inici')
             h_final_str = request.POST.get('final')
             
-            # Convertim els valors del formulari a objectes de temps
             t_inici = datetime.strptime(h_inici_str, '%H:%M').time()
             t_final = datetime.strptime(h_final_str, '%H:%M').time()
             
             inst = Instalacio.objects.get(id=inst_id)
 
-            # --- VALIDACIÓ 1: Horari d'obertura/tancament de la pista ---
             if t_inici < inst.hora_obertura or t_final > inst.hora_tancament:
                 messages.error(request, f"Error: {inst.nom} només obre de {inst.hora_obertura.strftime('%H:%M')} a {inst.hora_tancament.strftime('%H:%M')}.")
                 return redirect('gestio_plantilla')
 
-            # --- VALIDACIÓ 2: Coherència (Inici abans que Final) ---
             if t_inici >= t_final:
                 messages.error(request, "L'hora d'inici ha de ser anterior a la de final.")
                 return redirect('gestio_plantilla')
 
-            # --- VALIDACIÓ 3: No solapaments (Dues coses alhora) ---
             solapament = PlantillaReserva.objects.filter(
                 dia_setmana=dia,
                 instalacio=inst,
-                inici__lt=t_final,  # Si algun existent comença abans que el nou acabi
-                final__gt=t_inici   # Si algun existent acaba després que el nou comenci
+                inici__lt=t_final,
+                final__gt=t_inici
             ).exists()
 
             if solapament:
                 messages.error(request, f"Ja hi ha una activitat a {inst.nom} en aquesta franja horària.")
                 return redirect('gestio_plantilla')
 
-            # Si tot està bé, guardem
             PlantillaReserva.objects.create(
                 dia_setmana=dia,
                 instalacio=inst,
@@ -756,14 +763,15 @@ def gestio_plantilla(request):
             
         return redirect('gestio_plantilla')
 
-    # --- PREPARACIÓ DE DADES PER AL RENDER ---
+    # --- PREPARACIÓ DE DADES PER AL RENDER (MODIFICAT) ---
     
-    # Elements ordenats cronològicament
     elements = PlantillaReserva.objects.all().order_by('inici')
-    instalacions = Instalacio.objects.all()
-    usuaris = User.objects.exclude(username='marti').order_by('username')
     
-    # Generem totes les franges possibles de 15 minuts (8h a 24h)
+    # CANVI AQUÍ: Filtrem perquè només surtin les instal·lacions principals (sense pare)
+    # He posat 'parent__isnull', canvia-ho per 'instalacio_pare__isnull' si el teu camp es diu així
+    instalacions = Instalacio.objects.filter(parent__isnull=True)
+    
+    usuaris = User.objects.exclude(username='marti').order_by('username')
     franges = [f"{h:02d}:{m:02d}" for h in range(8, 24) for m in [0, 15, 30, 45]]
     
     dies_setmana = [
@@ -771,7 +779,7 @@ def gestio_plantilla(request):
         (4, 'Divendres'), (5, 'Dissabte'), (6, 'Diumenge')
     ]
 
-    # Diccionari d'horaris per passar-lo al JavaScript del HTML
+    # També filtrem aquí perquè el JS només tingui les dades de les principals
     horaris_pistes_js = {
         str(i.id): {
             'obertura': i.hora_obertura.strftime('%H:%M'),
@@ -785,7 +793,7 @@ def gestio_plantilla(request):
         'usuaris': usuaris,
         'dies_setmana': dies_setmana,
         'franges': franges,
-        'horaris_js': horaris_pistes_js  # Aquest és el que fa que el JS funcioni
+        'horaris_js': horaris_pistes_js
     })
 
 @login_required

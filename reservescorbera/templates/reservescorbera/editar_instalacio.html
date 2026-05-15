@@ -6,6 +6,7 @@
     <title>Editar Instal·lació - Esports Corbera</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         body { background-color: #0f0f0f; color: white; font-family: 'Inter', sans-serif; }
         .card-edit { 
@@ -20,14 +21,31 @@
         .form-control:focus { background-color: #2a2a2a; border-color: #d4af37; color: white; box-shadow: none; }
         .btn-save { background-color: #d4af37; color: black; font-weight: 800; border: none; }
         .btn-save:hover { background-color: #bfa030; }
+        
+        /* Estils nous per a la jerarquia */
+        .sub-zones-section { background-color: #222; border-radius: 10px; padding: 15px; border-left: 4px solid #d4af37; }
+        .list-group-item { background-color: #2a2a2a; border: 1px solid #444; color: white; transition: 0.3s; }
+        .list-group-item:hover { background-color: #333; border-color: #d4af37; }
+        .parent-alert { border: 1px solid #0dcaf0; color: #0dcaf0; background: rgba(13, 202, 240, 0.1); }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container mb-5">
         <div class="row justify-content-center">
-            <div class="col-md-6">
+            <div class="col-md-7">
                 <div class="card-edit shadow">
                     <h2 class="text-center mb-4" style="color: #d4af37; font-weight: 800;">EDITAR PISTA</h2>
+                    
+                    {% if instalacio.parent %}
+                    <div class="alert parent-alert d-flex align-items-center mb-4">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <div>
+                            Aquesta és una sub-zona de: <strong>{{ instalacio.parent.nom }}</strong>
+                            <a href="{% url 'editar_instalacio' instalacio.parent.id %}" class="btn btn-sm btn-outline-info ms-2">Anar al Pare</a>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <hr style="border-color: #444;">
                     
                     <form method="POST" enctype="multipart/form-data">
@@ -59,6 +77,22 @@
                                 <input type="time" name="hora_tancament" class="form-control" value="{{ instalacio.hora_tancament|time:'H:i' }}">
                             </div>
                         </div>
+
+                        {% if sub_espais %}
+                        <div class="sub-zones-section mt-4 mb-4">
+                            <h6 class="text-white mb-3" style="font-weight: 800;">
+                                <i class="bi bi-diagram-3-fill me-2" style="color: #d4af37;"></i>SUB-ESPAIS VINCULATS
+                            </h6>
+                            <div class="list-group">
+                                {% for sub in sub_espais %}
+                                <a href="{% url 'editar_instalacio' sub.id %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    <span>{{ sub.nom }}</span>
+                                    <i class="bi bi-pencil-square" style="color: #d4af37;"></i>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
 
                         <div class="d-grid gap-2 mt-4">
                             <button type="submit" class="btn btn-save">GUARDAR CANVIS</button>

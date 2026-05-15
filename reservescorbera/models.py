@@ -1,17 +1,24 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+from django.db import models
+
 class Instalacio(models.Model):
     nom = models.CharField(max_length=100)
-    # Color per al calendari (per defecte el daurat que t'agrada)
     color = models.CharField(max_length=7, default='#d4af37')
-    
-    # Imatge de la instal·lació
     imatge = models.ImageField(upload_to='instalacions/', null=True, blank=True)
-    
-    # Horaris d'obertura i tancament (ajuda a validar reserves)
     hora_obertura = models.TimeField(default="08:00")
     hora_tancament = models.TimeField(default="23:00")
+
+    # Camp per gestionar la jerarquia (Pare/Fills)
+    parent = models.ForeignKey(
+        'self', 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True, 
+        related_name='sub_espais',
+        help_text="Si aquest és un sub-espai, tria la instal·lació principal (Ex: El Camp de Futbol 11)."
+    )
 
     def __str__(self):
         return self.nom

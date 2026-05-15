@@ -9,52 +9,38 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
     <style>
-        :root {
-            --primary: #1a1a1a;
-            --accent: #d4af37;
-            --bg: #f8f9fa;
-            --white: #ffffff;
-        }
-
-        body { 
-            font-family: 'Segoe UI', system-ui, sans-serif; 
-            background: var(--bg); 
-            color: var(--primary);
-        }
+        :root { --primary: #1a1a1a; --accent: #d4af37; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--primary); }
 
         .header-section {
-            background: var(--primary);
-            color: white;
-            padding: 60px 0 40px;
-            text-align: center;
-            border-bottom: 4px solid var(--accent);
-            margin-bottom: 50px;
+            background: var(--primary); color: white; padding: 60px 0 40px; text-align: center;
+            border-bottom: 4px solid var(--accent); margin-bottom: 20px;
         }
-        .header-section h1 { font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
         .header-section h1 span { color: var(--accent); }
-
         .back-link { display: inline-flex; align-items: center; color: var(--accent); text-decoration: none; font-weight: 600; margin-bottom: 20px; }
-        .back-link:hover { color: white; }
+
+        /* Alerta d'error */
+        .alert-error-custom {
+            border-radius: 12px; border-left: 6px solid #dc3545; background-color: white;
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.1); color: #1a1a1a; margin-bottom: 30px;
+        }
 
         .inst-card {
             background: white; border: none; border-radius: 15px; overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.08); transition: all 0.3s ease;
             height: 100%; display: flex; flex-direction: column;
         }
-        .inst-card:hover { transform: translateY(-10px); box-shadow: 0 15px 40px rgba(212, 175, 55, 0.2); }
+        .inst-card:hover { transform: translateY(-10px); }
 
-        .inst-img-wrapper { position: relative; height: 220px; overflow: hidden; }
-        .inst-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
-        .inst-card:hover .inst-img { transform: scale(1.1); }
+        /* Contenidor d'imatge compatible amb Cloudinary */
+        .inst-img-wrapper { 
+            height: 200px; width: 100%; overflow: hidden; background: #e9ecef;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .inst-img { width: 100%; height: 100%; object-fit: cover; }
 
         .inst-body { padding: 25px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
-        .inst-title { font-weight: 800; font-size: 1.4rem; margin-bottom: 10px; text-transform: uppercase; color: var(--primary); }
-
-        .schedule-badge {
-            background-color: #fdfaf0; color: #444; border: 1px solid rgba(212, 175, 55, 0.3);
-            padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600;
-            display: inline-flex; align-items: center;
-        }
+        .inst-title { font-weight: 800; font-size: 1.4rem; margin-bottom: 10px; text-transform: uppercase; }
 
         .btn-reserve {
             background: var(--primary); color: var(--accent); border: 2px solid var(--accent);
@@ -63,46 +49,54 @@
         }
         .btn-reserve:hover { background: var(--accent); color: var(--primary); }
 
-        .modal-content { border-radius: 20px; border: none; }
         .modal-header { background: var(--primary); color: white; border-bottom: 3px solid var(--accent); }
-        .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+        .sub-selection-box { background: #fdfaf0; border: 1px solid #d4af37; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
     <section class="header-section">
         <div class="container">
-            <a href="{% url 'inici' %}" class="back-link"><i class="bi bi-arrow-left me-2"></i> Tornar al meu panell</a>
+            <a href="{% url 'inici' %}" class="back-link"><i class="bi bi-arrow-left me-2"></i> Tornar al panell</a>
             <h1>Reserva una <span>Instal·lació</span></h1>
-            <p>Selecciona una pista per veure els horaris disponibles</p>
         </div>
     </section>
 
-    <div class="container mb-5">
-        <div class="row g-4">
+    <div class="container">
+        {% if messages %}
+            {% for message in messages %}
+                {% if message.tags == 'error' or message.tags == 'danger' %}
+                <div class="alert alert-danger alert-dismissible fade show alert-error-custom" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        <div class="row g-4 mb-5">
             {% for inst in instalacions %}
             <div class="col-md-6 col-lg-4">
                 <div class="inst-card">
                     <div class="inst-img-wrapper">
                         {% if inst.imatge %}
-                            <img src="{{ inst.imatge.url }}" class="inst-img">
+                            <img src="{{ inst.imatge.url }}" class="inst-img" alt="{{ inst.nom }}" onerror="this.src='{% static 'img/default-inst.jpg' %}'">
                         {% else %}
-                            <img src="https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=2070" class="inst-img">
+                            <div class="text-center">
+                                <i class="bi bi-building-fill text-muted fs-1"></i>
+                                <p class="small text-muted mb-0">Sense imatge</p>
+                            </div>
                         {% endif %}
                     </div>
                     <div class="inst-body">
                         <div>
                             <h3 class="inst-title">{{ inst.nom }}</h3>
-                            <div class="inst-schedule mb-3">
-                                <span class="schedule-badge">
-                                    <i class="bi bi-clock-fill me-2 text-warning"></i>
-                                    {{ inst.hora_obertura|time:"H:i" }}h - {{ inst.hora_tancament|time:"H:i" }}h
-                                </span>
-                            </div>
+                            <p class="text-muted small">Horari: {{ inst.hora_obertura|time:"H:i" }} - {{ inst.hora_tancament|time:"H:i" }}</p>
                         </div>
-                        <button class="btn-reserve" 
-                            type="button"
-                            onclick="obrirModalReserva('{{ inst.id }}', '{{ inst.nom|escapejs }}', '{{ inst.hora_obertura|time:'H:i' }}', '{{ inst.hora_tancament|time:'H:i' }}')">
+                        
+                        <button class="btn-reserve" type="button"
+                            onclick="obrirModalReserva('{{ inst.id }}', '{{ inst.nom|escapejs }}', '{{ inst.hora_obertura|time:'H:i' }}', '{{ inst.hora_tancament|time:'H:i' }}', [ {% for sub in inst.sub_espais.all %} {id: '{{ sub.id }}', nom: '{{ sub.nom|escapejs }}'}, {% endfor %} ])">
                             <i class="bi bi-calendar-check me-2"></i> Reservar ara
                         </button>
                     </div>
@@ -116,184 +110,139 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i> Sol·licitud de Reserva</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title">Nova Reserva</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <h4 id="nomInstalacioModal" class="mb-4 text-center fw-bold text-uppercase text-warning"></h4>
-                    
+
+                    <div id="divSubEspais" class="sub-selection-box" style="display:none;">
+                        <label class="form-label fw-bold small">TRIA L'ESPAI ESPECÍFIC:</label>
+                        <select id="selectSubEspai" class="form-select" onchange="canviarPista()"></select>
+                    </div>
+
                     <div class="mb-3">
-                        <label class="form-label fw-bold">1. Què faràs? (Nom de l'activitat):</label>
-                        <input type="text" id="nomActivitat" class="form-control form-control-lg" 
-                               placeholder="Ex: Entrenament Juvenil A" onkeyup="validarSeleccio()">
+                        <label class="form-label fw-bold small">NOM DE L'ACTIVITAT:</label>
+                        <input type="text" id="nomActivitat" class="form-control" onkeyup="validarSeleccio()">
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold">2. Selecciona el dia:</label>
-                        <input type="date" id="dataReserva" class="form-control form-control-lg" 
-                               min="{{ avui|date:'Y-m-d' }}" onchange="buscarHoresDisponibles()">
+                        <label class="form-label fw-bold small">DIA:</label>
+                        <input type="date" id="dataReserva" class="form-control" min="{{ avui|date:'Y-m-d' }}" onchange="buscarHoresDisponibles()">
                     </div>
 
                     <div id="seccioHores" style="display: none;">
-                        <label class="form-label fw-bold">3. Tria la franja horària:</label>
+                        <label class="form-label fw-bold small">TRIA LA FRANJA:</label>
                         <div class="row g-2">
-                            <div class="col-6">
-                                <label class="small text-muted mb-1">Hora Inici:</label>
-                                <select id="selectInici" class="form-select form-select-lg" onchange="validarSeleccio()"></select>
-                            </div>
-                            <div class="col-6">
-                                <label class="small text-muted mb-1">Hora Final:</label>
-                                <select id="selectFinal" class="form-select form-select-lg" onchange="validarSeleccio()"></select>
-                            </div>
+                            <div class="col-6"><select id="selectInici" class="form-select" onchange="validarSeleccio()"></select></div>
+                            <div class="col-6"><select id="selectFinal" class="form-select" onchange="validarSeleccio()"></select></div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel·lar</button>
-                    <button type="button" id="btnFinalitzar" class="btn btn-dark px-4" disabled onclick="enviarReserva()">
-                        CONFIRMAR RESERVA
-                    </button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Enrere</button>
+                    <button type="button" id="btnFinalitzar" class="btn btn-dark px-4" disabled onclick="enviarReserva()">CONFIRMAR</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <script>
-        // Variables globals
-        let idSeleccionat = null;
+        let modalObj = null;
+        let idActual = null;
         let hOberturaActual = "";
         let hTancamentActual = "";
         let horesOcupadesActuals = [];
 
-        // 1. FUNCIO PER OBRIR EL MODAL (Invocada pel botó de la card)
-        function obrirModalReserva(id, nom, obertura, tancament) {
-            console.log("Intentant obrir:", nom, obertura, tancament);
-            
-            idSeleccionat = id;
-            hOberturaActual = obertura || "08:00";
-            hTancamentActual = tancament || "23:00";
+        document.addEventListener('DOMContentLoaded', () => {
+            modalObj = new bootstrap.Modal(document.getElementById('modalReserva'));
+        });
 
-            // Reset del formulari
+        function obrirModalReserva(id, nom, obertura, tancament, fills) {
+            idActual = id;
+            hOberturaActual = obertura;
+            hTancamentActual = tancament;
+
             document.getElementById('nomInstalacioModal').innerText = nom;
             document.getElementById('nomActivitat').value = '';
             document.getElementById('dataReserva').value = '';
             document.getElementById('seccioHores').style.display = 'none';
-            document.getElementById('btnFinalitzar').disabled = true;
 
-            // Obertura manual forçada
-            const modalElement = document.getElementById('modalReserva');
-            modalElement.classList.add('show');
-            modalElement.style.display = 'block';
-            document.body.classList.add('modal-open');
-
-            // Backdrop (fons fosc)
-            if (!document.getElementById('manual-backdrop')) {
-                const backdrop = document.createElement('div');
-                backdrop.className = 'modal-backdrop fade show';
-                backdrop.id = 'manual-backdrop';
-                document.body.appendChild(backdrop);
+            const divSub = document.getElementById('divSubEspais');
+            const selectSub = document.getElementById('selectSubEspai');
+            
+            if (fills && fills.length > 0) {
+                divSub.style.display = 'block';
+                selectSub.innerHTML = `<option value="${id}">${nom} (Sencer)</option>`;
+                fills.forEach(f => {
+                    selectSub.innerHTML += `<option value="${f.id}">${f.nom}</option>`;
+                });
+            } else {
+                divSub.style.display = 'none';
             }
+            modalObj.show();
         }
 
-        // 2. FUNCIO PER TANCAR EL MODAL
-        function tancarModalReserva() {
-            document.getElementById('modalReserva').classList.remove('show');
-            document.getElementById('modalReserva').style.display = 'none';
-            document.body.classList.remove('modal-open');
-            const backdrop = document.getElementById('manual-backdrop');
-            if (backdrop) backdrop.remove();
+        function canviarPista() {
+            idActual = document.getElementById('selectSubEspai').value;
+            if (document.getElementById('dataReserva').value) buscarHoresDisponibles();
         }
 
-        // 3. BUSCAR HORES QUAN ES TRIA DATA
         async function buscarHoresDisponibles() {
             const data = document.getElementById('dataReserva').value;
             if (!data) return;
-
+            const resp = await fetch(`/api/hores-ocupades/?instalacio=${idActual}&data=${data}&t=${Date.now()}`);
+            horesOcupadesActuals = await resp.json();
             document.getElementById('seccioHores').style.display = 'block';
-            
-            try {
-                // Afegim un timestamp (&t=) per evitar que el navegador guardi la resposta antiga en memòria
-                const resp = await fetch(`/api/hores-ocupades/?instalacio=${idSeleccionat}&data=${data}&t=${Date.now()}`);
-                horesOcupadesActuals = await resp.json();
-                poblarSelects();
-            } catch (e) {
-                console.error("Error API:", e);
-            }
+            poblarSelects();
         }
 
-        // 4. GENERAR DESPLEGABLES SEGONS L'HORARI DE LA PISTA
         function poblarSelects() {
-            const selectInici = document.getElementById('selectInici');
-            const selectFinal = document.getElementById('selectFinal');
-            
-            selectInici.innerHTML = '<option value="">Inici...</option>';
-            selectFinal.innerHTML = '<option value="">Final...</option>';
-            selectFinal.disabled = true;
+            const sI = document.getElementById('selectInici');
+            const sF = document.getElementById('selectFinal');
+            sI.innerHTML = '<option value="">Inici...</option>';
+            sF.innerHTML = '<option value="">Final...</option>';
+            sF.disabled = true;
 
-            // Convertim hores a minuts per fer el bucle
             let [hO, mO] = hOberturaActual.split(':').map(Number);
             let [hT, mT] = hTancamentActual.split(':').map(Number);
-            let iniciMins = hO * 60 + mO;
-            let tancamentMins = hT * 60 + mT;
 
-            for (let min = iniciMins; min <= tancamentMins - 15; min += 15) {
-                let h = Math.floor(min / 60).toString().padStart(2, '0');
-                let m = (min % 60).toString().padStart(2, '0');
-                let horaStr = `${h}:${m}`;
-                
-                let ocupat = horesOcupadesActuals.includes(horaStr);
-                selectInici.innerHTML += `<option value="${horaStr}" ${ocupat ? 'disabled style="color:#ccc"' : ''}>${horaStr}</option>`;
+            for (let min = hO * 60 + mO; min <= hT * 60 + mT - 15; min += 15) {
+                let h = Math.floor(min/60).toString().padStart(2,'0'), m = (min%60).toString().padStart(2,'0');
+                let hs = `${h}:${m}`;
+                sI.innerHTML += `<option value="${hs}" ${horesOcupadesActuals.includes(hs) ? 'disabled style="color:#ccc"' : ''}>${hs}</option>`;
             }
 
-            // Quan triem l'inici, habilitem el final
-            selectInici.onchange = function() {
-                const iniciTriat = this.value;
-                selectFinal.innerHTML = '<option value="">Final...</option>';
-                if (!iniciTriat) { selectFinal.disabled = true; return; }
-
-                selectFinal.disabled = false;
-                let [hI, mI] = iniciTriat.split(':').map(Number);
-                let iniciTriatMins = hI * 60 + mI;
-
-                for (let min = iniciTriatMins + 15; min <= tancamentMins; min += 15) {
-                    let h = Math.floor(min / 60).toString().padStart(2, '0');
-                    let m = (min % 60).toString().padStart(2, '0');
-                    let horaStr = `${h}:${m}`;
-                    
-                    // Si hi ha una reserva enmig, tallem les opcions
-                    let checkAnterior = Math.floor((min-15)/60).toString().padStart(2, '0')+":"+((min-15)%60).toString().padStart(2, '0');
-                    if (horesOcupadesActuals.includes(checkAnterior) && min > iniciTriatMins + 15) break;
-                    
-                    selectFinal.innerHTML += `<option value="${horaStr}">${horaStr}</option>`;
+            sI.onchange = function() {
+                sF.innerHTML = '<option value="">Final...</option>';
+                if (!this.value) { sF.disabled = true; return; }
+                sF.disabled = false;
+                let [hI, mI] = this.value.split(':').map(Number);
+                for (let min = (hI*60+mI)+15; min <= hT * 60 + mT; min += 15) {
+                    let h = Math.floor(min/60).toString().padStart(2,'0'), m = (min%60).toString().padStart(2,'0');
+                    let hs = `${h}:${m}`;
+                    let hAnt = Math.floor((min-15)/60).toString().padStart(2,'0'), mAnt = ((min-15)%60).toString().padStart(2,'0');
+                    if (horesOcupadesActuals.includes(`${hAnt}:${mAnt}`)) break;
+                    sF.innerHTML += `<option value="${hs}">${hs}</option>`;
                 }
                 validarSeleccio();
             };
         }
 
         function validarSeleccio() {
-            const nom = document.getElementById('nomActivitat').value.trim();
-            const inici = document.getElementById('selectInici').value;
-            const final = document.getElementById('selectFinal').value;
-            document.getElementById('btnFinalitzar').disabled = !(nom.length > 2 && inici && final);
+            const n = document.getElementById('nomActivitat').value.trim();
+            const i = document.getElementById('selectInici').value;
+            const f = document.getElementById('selectFinal').value;
+            document.getElementById('btnFinalitzar').disabled = !(n.length > 2 && i && f);
         }
 
-        // 5. ENVIAMENT FINAL
         function enviarReserva() {
-            const btn = document.getElementById('btnFinalitzar');
-            const nom = document.getElementById('nomActivitat').value.trim();
-            const data = document.getElementById('dataReserva').value;
-            const inici = document.getElementById('selectInici').value;
-            const final = document.getElementById('selectFinal').value;
-
-            btn.disabled = true;
-            btn.innerHTML = "Processant...";
-
-            // Enviem a la teva vista fer_reserva
-            const url = `/reserva/${idSeleccionat}/?data=${data}&hora_inici=${inici}&hora_fi=${final}&nom_activitat=${encodeURIComponent(nom)}`;
-            window.location.href = url;
+            const n = encodeURIComponent(document.getElementById('nomActivitat').value);
+            const d = document.getElementById('dataReserva').value;
+            const i = document.getElementById('selectInici').value;
+            const f = document.getElementById('selectFinal').value;
+            window.location.href = `/reserva/${idActual}/?data=${d}&hora_inici=${i}&hora_fi=${f}&nom_activitat=${n}`;
         }
     </script>
 </body>
