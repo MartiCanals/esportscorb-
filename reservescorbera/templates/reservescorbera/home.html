@@ -152,11 +152,17 @@
                     const cerca = selector.value.toLowerCase().trim();
                     const nomReserva = (info.event.extendedProps.instalacio || "").toLowerCase().trim();
 
-                    // FILTRE INTEL·LIGENT: Si no és "tots" i el nom NO conté la paraula buscada, amaguem
-                    if (cerca !== 'tots' && !nomReserva.includes(cerca)) {
-                        info.el.style.display = 'none';
+                    // Si és "tots", mostrem tot sempre
+                    if (cerca === 'tots') {
+                        info.el.style.display = '';
+                        return;
+                    }
+
+                    // Filtre: mirem si el nom de la reserva conté la paraula del pare
+                    if (nomReserva.includes(cerca)) {
+                        info.el.style.display = ''; 
                     } else {
-                        info.el.style.display = ''; // Forcem que es vegi si coincideix
+                        info.el.style.display = 'none';
                     }
                 },
 

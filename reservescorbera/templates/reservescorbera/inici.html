@@ -582,10 +582,17 @@
 
         function filtrarPerDesplegable(valor) {
             if (calendar) {
-                // En lloc d'anar un per un manualment, forcem al calendari 
-                // a tornar a processar tots els events a la vegada.
-                // Això farà que s'executi automàticament l' 'eventDidMount' per a cadascun.
+                // 1. Forcem el recalcul dels esdeveniments
                 calendar.render(); 
+                
+                // 2. Si veus que encara no reacciona, fem un petit "truc" 
+                // que obliga a FullCalendar a repintar tots els elements del DOM:
+                const esdeveniments = calendar.getEvents();
+                esdeveniments.forEach(ev => {
+                    // Això no canvia res de la base de dades, 
+                    // però obliga al calendari a tornar a executar el eventDidMount
+                    ev.setProp('title', ev.title); 
+                });
             }
         }
 
