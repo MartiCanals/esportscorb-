@@ -20,7 +20,6 @@
 
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--primary); margin: 0; }
 
-        /* Top Bar Estricta */
         #top-bar { 
             display: flex; justify-content: space-between; align-items: center;
             padding: 12px 40px; background: var(--primary); color: white;
@@ -29,21 +28,15 @@
         #top-bar h1 span { color: var(--accent); }
         .btn-staff { border: 1px solid var(--accent); color: var(--accent); padding: 6px 15px; border-radius: 4px; text-decoration: none; font-size: 0.75rem; font-weight: bold; }
 
-        /* Estructura Principal */
         .main-layout {
             display: grid;
             grid-template-columns: 320px 1fr;
             min-height: calc(100vh - 55px);
         }
 
-        /* Columna de Control (Esquerra) */
         .sidebar {
-            background: white;
-            border-right: 1px solid var(--border);
-            padding: 40px 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
+            background: white; border-right: 1px solid var(--border);
+            padding: 40px 30px; display: flex; flex-direction: column; gap: 30px;
         }
 
         .sidebar h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: 5px; }
@@ -54,38 +47,28 @@
             border-radius: 8px; font-weight: 700; outline: none; cursor: pointer;
         }
 
-        /* Contenidor de la Imatge INTEGRAT */
         #photo-container {
-            margin-top: auto; 
-            width: 100%;
-            height: 200px;
-            border-radius: 12px;
-            overflow: hidden;
-            background: #f5f5f5;
-            display: none; 
-            border: 1px solid var(--border);
-            position: relative;
+            margin-top: auto; width: 100%; height: 200px;
+            border-radius: 12px; overflow: hidden; background: #222;
+            display: none; border: 1px solid var(--border); position: relative;
         }
 
         #photo-container img { width: 100%; height: 100%; object-fit: cover; }
         
+        /* Estil per quan no hi ha foto */
+        #no-photo-placeholder {
+            height: 100%; display: none; flex-direction: column;
+            align-items: center; justify-content: center; color: #555;
+        }
+
         .photo-label {
             position: absolute; bottom: 0; left: 0; right: 0;
-            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
             color: white; padding: 10px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
         }
 
-        /* Àrea del Calendari */
         .calendar-area { padding: 30px; background: #fff; }
         #calendar { height: 100%; }
-
-        /* Ajustos FullCalendar */
-        .fc { --fc-border-color: #f0f0f0; }
-        .fc-toolbar-title { font-weight: 800 !important; font-size: 1.3rem !important; text-transform: lowercase; }
-        .fc-toolbar-title::first-letter { text-transform: uppercase; }
-        .fc-button-primary { background: #fff !important; border: 1px solid #ddd !important; color: var(--primary) !important; font-weight: 700 !important; }
-        .fc-button-active { background: var(--primary) !important; color: #fff !important; border-color: var(--primary) !important; }
-        .fc-col-header-cell { background: #fafafa; padding: 10px 0 !important; font-size: 0.75rem; text-transform: uppercase; color: #999; }
 
         @media (max-width: 900px) {
             .main-layout { grid-template-columns: 1fr; }
@@ -105,14 +88,15 @@
         <aside class="sidebar">
             <div>
                 <h2>Instal·lacions</h2>
-                <p>Consulta les diverses activitats, partits i entrenaments que es realitzen a les nostres instal·lacions.</p>
+                <p>Consulta les activitats i entrenaments de les nostres instal·lacions.</p>
             </div>
 
             <div class="filter-box">
                 <select class="custom-select" id="selector-instalacio" onchange="actualitzarTot(this)">
                     <option value="tots">Totes les instal·lacions</option>
                     {% for inst in instalacions %}
-                        <option value="{{ inst.nom|lower }}" data-img="{{ inst.imatge.url|default:'' }}">
+                        <option value="{{ inst.nom|lower }}" 
+                                data-img="{% if inst.imatge and inst.imatge.name %}{{ inst.imatge.url }}{% else %}none{% endif %}">
                             {{ inst.nom }}
                         </option>
                     {% endfor %}
@@ -120,7 +104,13 @@
             </div>
 
             <div id="photo-container">
-                <img id="inst-photo" src="" alt="">
+                <img id="inst-photo" src="" alt="" style="display: none;">
+                
+                <div id="no-photo-placeholder">
+                    <i class="bi bi-building fs-1"></i>
+                    <span class="mt-2 small fw-bold">SENSE FOTO</span>
+                </div>
+                
                 <div class="photo-label" id="photo-name"></div>
             </div>
         </aside>
@@ -149,12 +139,6 @@
                     right: 'dayGridMonth,timeGridWeek,timeGridDay' 
                 },
                 buttonText: { today: 'Avui', month: 'Mes', week: 'Setmana', day: 'Dia' },
-                // Aquestes opcions permeten que el títol canviï segons la vista seleccionada
-                views: {
-                    dayGridMonth: { titleFormat: { month: 'long', year: 'numeric' } },
-                    timeGridWeek: { titleFormat: { day: 'numeric', month: 'long', year: 'numeric' } },
-                    timeGridDay: { titleFormat: { day: 'numeric', month: 'long', year: 'numeric' } }
-                },
                 events: '/api/reserves/',
                 eventClick: function(info) {
                     Swal.fire({
@@ -172,14 +156,24 @@
             const opt = select.options[select.selectedIndex];
             const container = document.getElementById('photo-container');
             const img = document.getElementById('inst-photo');
+            const placeholder = document.getElementById('no-photo-placeholder');
             const label = document.getElementById('photo-name');
+            const dataImg = opt.getAttribute('data-img');
 
             if (val === 'tots') {
                 container.style.display = 'none';
             } else {
                 container.style.display = 'block';
-                img.src = opt.getAttribute('data-img');
                 label.innerText = opt.text;
+                
+                if (dataImg === 'none' || !dataImg) {
+                    img.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                } else {
+                    img.src = dataImg;
+                    img.style.display = 'block';
+                    placeholder.style.display = 'none';
+                }
             }
 
             const cerca = val.toLowerCase().trim();
