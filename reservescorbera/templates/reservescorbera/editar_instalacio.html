@@ -31,8 +31,9 @@
         .list-group-item:hover { background-color: #333; border-color: #d4af37; }
         .parent-alert { border: 1px solid #0dcaf0; color: #0dcaf0; background: rgba(13, 202, 240, 0.1); }
         
-        /* Estil switch cap de setmana */
+        /* Seccions Dissabte i Diumenge */
         .finde-config { background-color: #222; border-radius: 10px; padding: 15px; margin-top: 15px; }
+        .dia-config-box { background-color: #2a2a2a; border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 10px; }
         .form-check-input:checked { background-color: #d4af37; border-color: #d4af37; }
     </style>
 </head>
@@ -91,33 +92,77 @@
                         </div>
 
                         <div class="finde-config">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="form-label mb-0">Horari Cap de Setmana {% if instalacio.parent %}(Heretat){% endif %}</label>
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" id="obertFinde" name="obert_cap_setmana" 
                                            {% if instalacio.obert_cap_setmana %}checked{% endif %} 
                                            {% if instalacio.parent %}disabled{% endif %}
                                            onchange="toggleHorariFinde()">
-                                    <label class="form-check-label text-white small" for="obertFinde">Obert</label>
+                                    <label class="form-check-label text-white small" for="obertFinde">Obert cap de setmana</label>
                                 </div>
                             </div>
 
-                            <div id="seccioFinde" class="row">
-                                <div class="col-md-6 mb-2">
-                                    <label class="small text-muted fw-bold">Obertura (Diss/Dium)</label>
-                                    <input type="time" name="hora_obertura_finde" id="h_ob_finde" class="form-control" 
-                                           value="{{ instalacio.hora_obertura_finde|time:'H:i' }}"
-                                           {% if instalacio.parent %}disabled{% endif %}>
+                            <div id="seccioFinde">
+                                
+                                <div class="dia-config-box">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small fw-bold text-white"><i class="bi bi-calendar-day me-1"></i> Dissabte</span>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input form-check-sm" type="checkbox" id="obertDissabte" name="obert_dissabte"
+                                                   {% if instalacio.obert_dissabte %}checked{% endif %}
+                                                   {% if instalacio.parent %}disabled{% endif %}
+                                                   onchange="toggleDia('Dissabte')">
+                                        </div>
+                                    </div>
+                                    <div class="row" id="inputsDissabte">
+                                        <div class="col-md-6">
+                                            <label class="small text-muted mb-1">Obertura</label>
+                                            <input type="time" name="hora_obertura_dissabte" class="form-control form-control-sm" 
+                                                   value="{{ instalacio.hora_obertura_dissabte|time:'H:i'|default:'09:00' }}"
+                                                   {% if instalacio.parent %}disabled{% endif %}>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="small text-muted mb-1">Tancament</label>
+                                            <input type="time" name="hora_tancament_dissabte" class="form-control form-control-sm" 
+                                                   value="{{ instalacio.hora_tancament_dissabte|time:'H:i'|default:'21:00' }}"
+                                                   {% if instalacio.parent %}disabled{% endif %}>
+                                        </div>
+                                    </div>
+                                    <div id="msgDissabteTancat" class="text-muted small mt-1" style="display: none;"><em>Tancat els dissabtes.</em></div>
                                 </div>
-                                <div class="col-md-6 mb-2">
-                                    <label class="small text-muted fw-bold">Tancament (Diss/Dium)</label>
-                                    <input type="time" name="hora_tancament_finde" id="h_tan_finde" class="form-control" 
-                                           value="{{ instalacio.hora_tancament_finde|time:'H:i' }}"
-                                           {% if instalacio.parent %}disabled{% endif %}>
+
+                                <div class="dia-config-box mt-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small fw-bold text-white"><i class="bi bi-calendar-day me-1"></i> Diumenge</span>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input form-check-sm" type="checkbox" id="obertDiumenge" name="obert_diumenge"
+                                                   {% if instalacio.obert_diumenge %}checked{% endif %}
+                                                   {% if instalacio.parent %}disabled{% endif %}
+                                                   onchange="toggleDia('Diumenge')">
+                                        </div>
+                                    </div>
+                                    <div class="row" id="inputsDiumenge">
+                                        <div class="col-md-6">
+                                            <label class="small text-muted mb-1">Obertura</label>
+                                            <input type="time" name="hora_obertura_diumenge" class="form-control form-control-sm" 
+                                                   value="{{ instalacio.hora_obertura_diumenge|time:'H:i'|default:'09:00' }}"
+                                                   {% if instalacio.parent %}disabled{% endif %}>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="small text-muted mb-1">Tancament</label>
+                                            <input type="time" name="hora_tancament_diumenge" class="form-control form-control-sm" 
+                                                   value="{{ instalacio.hora_tancament_diumenge|time:'H:i'|default:'14:00' }}"
+                                                   {% if instalacio.parent %}disabled{% endif %}>
+                                        </div>
+                                    </div>
+                                    <div id="msgDiumengeTancat" class="text-muted small mt-1" style="display: none;"><em>Tancat els diumenges.</em></div>
                                 </div>
+
                             </div>
+
                             <div id="missatgeTancat" class="text-warning small mt-2" style="display: none;">
-                                <i class="bi bi-door-closed-fill"></i> Tancat els caps de setmana. No es podrà reservar.
+                                <i class="bi bi-door-closed-fill"></i> Tancat completament el cap de setmana. No es podrà reservar.
                             </div>
                         </div>
 
@@ -152,22 +197,45 @@
             const obert = document.getElementById('obertFinde').checked;
             const seccio = document.getElementById('seccioFinde');
             const missatge = document.getElementById('missatgeTancat');
-            const inputs = seccio.querySelectorAll('input');
             const isParent = {% if instalacio.parent %}true{% else %}false{% endif %};
 
             if (obert) {
-                seccio.style.opacity = "1";
+                seccio.style.display = 'block';
                 missatge.style.display = 'none';
+                toggleDia('Dissabte');
+                toggleDia('Diumenge');
+            } else {
+                seccio.style.display = 'none';
+                missatge.style.display = 'block';
+                seccio.querySelectorAll('input[type="time"]').forEach(i => i.disabled = true);
+                seccio.querySelectorAll('input[type="checkbox"]').forEach(c => c.disabled = true);
+            }
+        }
+
+        function toggleDia(dia) {
+            if (!document.getElementById('obertFinde').checked) return;
+
+            const obertDia = document.getElementById(`obert${dia}`).checked;
+            const rowInputs = document.getElementById(`inputs${dia}`);
+            const msgTancat = document.getElementById(`msg${dia}Tancat`);
+            const inputs = rowInputs.querySelectorAll('input');
+            const isParent = {% if instalacio.parent %}true{% else %}false{% endif %};
+
+            if (obertDia) {
+                rowInputs.style.opacity = "1";
+                msgTancat.style.display = 'none';
                 if (!isParent) inputs.forEach(i => i.disabled = false);
             } else {
-                seccio.style.opacity = "0.3";
-                missatge.style.display = 'block';
+                rowInputs.style.opacity = "0.3";
+                msgTancat.style.display = 'block';
                 inputs.forEach(i => i.disabled = true);
             }
         }
 
-        // Execució al carregar per aplicar l'estat inicial
-        document.addEventListener('DOMContentLoaded', toggleHorariFinde);
+        // Execució al carregar per aplicar l'estat inicial de la base de dades
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleHorariFinde();
+        });
     </script>
 </body>
 </html>

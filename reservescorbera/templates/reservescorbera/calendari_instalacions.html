@@ -49,8 +49,6 @@
 
         .modal-header { background: var(--primary); color: white; border-bottom: 3px solid var(--accent); }
         .sub-selection-box { background: #fdfaf0; border: 1px solid #d4af37; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
-        
-        .badge-finde { background: #d4af37; color: #1a1a1a; font-size: 0.7rem; padding: 3px 8px; border-radius: 5px; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -93,11 +91,21 @@
                                 Dilluns-Divendres: <strong>{{ inst.hora_obertura|time:"H:i" }} - {{ inst.hora_tancament|time:"H:i" }}</strong>
                             </p>
                             
-                            <p class="text-muted small">
-                                <i class="bi bi-calendar-week me-1"></i> 
-                                Cap de setmana: 
-                                {% if inst.obert_cap_setmana %}
-                                    <span class="text-dark fw-bold">{{ inst.hora_obertura_finde|time:"H:i" }} - {{ inst.hora_tancament_finde|time:"H:i" }}</span>
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-calendar-day me-1"></i> 
+                                Dissabte: 
+                                {% if inst.obert_cap_setmana and inst.obert_dissabte %}
+                                    <span class="text-dark fw-bold">{{ inst.hora_obertura_dissabte|time:"H:i" }} - {{ inst.hora_tancament_dissabte|time:"H:i" }}</span>
+                                {% else %}
+                                    <span class="text-muted"><em>Tancat</em></span>
+                                {% endif %}
+                            </p>
+
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-calendar-day me-1"></i> 
+                                Diumenge: 
+                                {% if inst.obert_cap_setmana and inst.obert_diumenge %}
+                                    <span class="text-dark fw-bold">{{ inst.hora_obertura_diumenge|time:"H:i" }} - {{ inst.hora_tancament_diumenge|time:"H:i" }}</span>
                                 {% else %}
                                     <span class="text-muted"><em>Tancat</em></span>
                                 {% endif %}
@@ -111,8 +119,12 @@
                                 '{{ inst.hora_obertura|time:'H:i' }}', 
                                 '{{ inst.hora_tancament|time:'H:i' }}', 
                                 '{{ inst.obert_cap_setmana|yesno:'true,false' }}',
-                                '{{ inst.hora_obertura_finde|time:'H:i'|default:'00:00' }}',
-                                '{{ inst.hora_tancament_finde|time:'H:i'|default:'00:00' }}',
+                                '{{ inst.obert_dissabte|yesno:'true,false' }}',
+                                '{{ inst.hora_obertura_dissabte|time:'H:i'|default:'00:00' }}',
+                                '{{ inst.hora_tancament_dissabte|time:'H:i'|default:'00:00' }}',
+                                '{{ inst.obert_diumenge|yesno:'true,false' }}',
+                                '{{ inst.hora_obertura_diumenge|time:'H:i'|default:'00:00' }}',
+                                '{{ inst.hora_tancament_diumenge|time:'H:i'|default:'00:00' }}',
                                 [ {% for sub in inst.sub_espais.all %} {id: '{{ sub.id }}', nom: '{{ sub.nom|escapejs }}'}, {% endfor %} ]
                             )">
                             <i class="bi bi-calendar-check me-2"></i> Reservar ara
@@ -147,7 +159,7 @@
                     <div class="mb-4">
                         <label class="form-label fw-bold small">DIA:</label>
                         <input type="date" id="dataReserva" class="form-control" min="{{ avui|date:'Y-m-d' }}" onchange="buscarHoresDisponibles()">
-                        <div id="infoTancat" class="text-danger small mt-2 fw-bold" style="display:none;">⚠️ Aquesta pista tanca els caps de setmana.</div>
+                        <div id="infoTancat" class="text-danger small mt-2 fw-bold" style="display:none;">⚠️ Aquesta pista tanca aquest dia de cap de setmana.</div>
                     </div>
 
                     <div id="seccioHores" style="display: none;">
@@ -171,20 +183,33 @@
         let modalObj = null;
         let idActual = null;
         let hOberturaLV = "", hTancamentLV = "";
-        let obertFinde = false, hObertFinde = "", hTancamentFinde = "";
+        
+        // Variables individuals per a dissabte i diumenge
+        let obertFindeG = false;
+        let obertDissabte = false, hObertDissabte = "", hTancamentDissabte = "";
+        let obertDiumenge = false, hObertDiumenge = "", hTancamentDiumenge = "";
+        
         let horesOcupadesActuals = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             modalObj = new bootstrap.Modal(document.getElementById('modalReserva'));
         });
 
-        function obrirModalReserva(id, nom, obertura, tancament, obertF, obertF_H, tancatF_H, fills) {
+        // Modifiquem els paràmetres rebuts per emmagatzemar la nova configuració separada
+        function obrirModalReserva(id, nom, obertura, tancament, obertFG, obertDiss, obertDiss_H, tancatDiss_H, obertDiu, obertDiu_H, tancatDiu_H, fills) {
             idActual = id;
             hOberturaLV = obertura;
             hTancamentLV = tancament;
-            obertFinde = (obertF === 'true');
-            hObertFinde = obertF_H;
-            hTancamentFinde = tancatF_H;
+            
+            obertFindeG = (obertFG === 'true');
+            
+            obertDissabte = (obertDiss === 'true');
+            hObertDissabte = obertDiss_H;
+            hTancamentDissabte = tancatDiss_H;
+            
+            obertDiumenge = (obertDiu === 'true');
+            hObertDiumenge = obertDiu_H;
+            hTancamentDiumenge = tancatDiu_H;
 
             document.getElementById('nomInstalacioModal').innerText = nom;
             document.getElementById('nomActivitat').value = '';
@@ -213,10 +238,21 @@
 
             const dataObj = new Date(dataInput);
             const diaSetmana = dataObj.getDay(); // 0 Diumenge, 6 Dissabte
-            const esFinde = (diaSetmana === 0 || diaSetmana === 6);
+            
+            let tancatAvui = false;
+            let tipusDia = 'laborable'; // 'laborable', 'dissabte' o 'diumenge'
 
-            // Bloqueig si està tancat el cap de setmana
-            if (esFinde && !obertFinde) {
+            // Validem l'estat segons el dia triat
+            if (diaSetmana === 6) { // Dissabte
+                if (!obertFindeG || !obertDissabte) tancatAvui = true;
+                tipusDia = 'dissabte';
+            } else if (diaSetmana === 0) { // Diumenge
+                if (!obertFindeG || !obertDiumenge) tancatAvui = true;
+                tipusDia = 'diumenge';
+            }
+
+            // Si es detecta que està tancat, mostrem el bloqueig
+            if (tancatAvui) {
                 document.getElementById('seccioHores').style.display = 'none';
                 document.getElementById('infoTancat').style.display = 'block';
                 document.getElementById('btnFinalitzar').disabled = true;
@@ -228,19 +264,27 @@
             horesOcupadesActuals = await resp.json();
             
             document.getElementById('seccioHores').style.display = 'block';
-            poblarSelects(esFinde);
+            poblarSelects(tipusDia);
         }
 
-        function poblarSelects(esFinde) {
+        function poblarSelects(tipusDia) {
             const sI = document.getElementById('selectInici');
             const sF = document.getElementById('selectFinal');
             sI.innerHTML = '<option value="">Inici...</option>';
             sF.innerHTML = '<option value="">Final...</option>';
             sF.disabled = true;
 
-            // Decidir quins horaris fem servir
-            let hO = esFinde ? hObertFinde : hOberturaLV;
-            let hT = esFinde ? hTancamentFinde : hTancamentLV;
+            // Escollim la franja horària exacte depenent del tipus de dia
+            let hO = hOberturaLV;
+            let hT = hTancamentLV;
+
+            if (tipusDia === 'dissabte') {
+                hO = hObertDissabte;
+                hT = hTancamentDissabte;
+            } else if (tipusDia === 'diumenge') {
+                hO = hObertDiumenge;
+                hT = hTancamentDiumenge;
+            }
 
             let [h_inici, m_inici] = hO.split(':').map(Number);
             let [h_fi, m_fi] = hT.split(':').map(Number);

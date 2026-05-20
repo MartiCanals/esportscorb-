@@ -83,23 +83,56 @@
                             <h5 class="mb-0"><i class="bi bi-calendar-week"></i> Horari Cap de Setmana</h5>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="obertFinde" name="obert_cap_setmana" checked onchange="toggleHorariFinde()">
-                                <label class="form-check-label fw-bold" for="obertFinde">Obert</label>
+                                <label class="form-check-label fw-bold" for="obertFinde">Obert el cap de setmana</label>
                             </div>
                         </div>
 
-                        <div id="seccioFinde" class="config-section row finde-box">
-                            <div class="col-md-6 mb-3">
-                                <label class="small fw-bold">Obertura (Diss/Dium)</label>
-                                <input type="time" name="hora_obertura_finde" id="h_ob_finde" class="form-control" value="09:00">
+                        <div id="seccioFinde" style="display: block;">
+                            
+                            <div class="config-section mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-calendar-day"></i> Dissabte</h6>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="obertDissabte" name="obert_dissabte" checked onchange="toggleDia('Dissabte')">
+                                    </div>
+                                </div>
+                                <div class="row" id="inputsDissabte">
+                                    <div class="col-md-6">
+                                        <label class="small fw-bold">Obertura Dissabte</label>
+                                        <input type="time" name="hora_obertura_dissabte" class="form-control" value="09:00">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="small fw-bold">Tancament Dissabte</label>
+                                        <input type="time" name="hora_tancament_dissabte" class="form-control" value="21:00">
+                                    </div>
+                                </div>
+                                <div id="msgDissabteTancat" class="text-muted small mt-2" style="display: none;"><em>Tancat els dissabtes.</em></div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="small fw-bold">Tancament (Diss/Dium)</label>
-                                <input type="time" name="hora_tancament_finde" id="h_tan_finde" class="form-control" value="21:00">
+
+                            <div class="config-section mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-calendar-day"></i> Diumenge</h6>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="obertDiumenge" name="obert_diumenge" checked onchange="toggleDia('Diumenge')">
+                                    </div>
+                                </div>
+                                <div class="row" id="inputsDiumenge">
+                                    <div class="col-md-6">
+                                        <label class="small fw-bold">Obertura Diumenge</label>
+                                        <input type="time" name="hora_obertura_diumenge" class="form-control" value="09:00">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="small fw-bold">Tancament Diumenge</label>
+                                        <input type="time" name="hora_tancament_diumenge" class="form-control" value="14:00">
+                                    </div>
+                                </div>
+                                <div id="msgDiumengeTancat" class="text-muted small mt-2" style="display: none;"><em>Tancat els diumenges.</em></div>
                             </div>
+
                         </div>
 
                         <div id="missatgeTancat" class="alert alert-warning mb-4" style="display: none;">
-                            <i class="bi bi-info-circle-fill"></i> La instal·lació romandrà <strong>tancada</strong> els caps de setmana. No es permetran reserves.
+                            <i class="bi bi-info-circle-fill"></i> La instal·lació romandrà <strong>tancada</strong> completament el cap de setmana.
                         </div>
 
                         <hr>
@@ -137,15 +170,36 @@
             const obert = document.getElementById('obertFinde').checked;
             const seccio = document.getElementById('seccioFinde');
             const missatge = document.getElementById('missatgeTancat');
-            const inputs = seccio.querySelectorAll('input');
-
+            
             if (obert) {
-                seccio.style.display = 'flex';
+                seccio.style.display = 'block';
                 missatge.style.display = 'none';
-                inputs.forEach(i => i.disabled = false);
+                toggleDia('Dissabte');
+                toggleDia('Diumenge');
             } else {
                 seccio.style.display = 'none';
                 missatge.style.display = 'block';
+                // Desactivem tots els inputs de la secció si està tancat general
+                seccio.querySelectorAll('input[type="time"]').forEach(i => i.disabled = true);
+            }
+        }
+
+        function toggleDia(dia) {
+            // Si el cap de setmana general està apagat, no fem res
+            if (!document.getElementById('obertFinde').checked) return;
+
+            const obertDia = document.getElementById(`obert${dia}`).checked;
+            const rowInputs = document.getElementById(`inputs${dia}`);
+            const msgTancat = document.getElementById(`msg${dia}Tancat`);
+            const inputs = rowInputs.querySelectorAll('input');
+
+            if (obertDia) {
+                rowInputs.style.display = 'flex';
+                msgTancat.style.display = 'none';
+                inputs.forEach(i => i.disabled = false);
+            } else {
+                rowInputs.style.display = 'none';
+                msgTancat.style.display = 'block';
                 inputs.forEach(i => i.disabled = true);
             }
         }
