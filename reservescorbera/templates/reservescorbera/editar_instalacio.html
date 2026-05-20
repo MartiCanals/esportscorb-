@@ -54,7 +54,7 @@
                     </div>
                     {% endif %}
 
-                    <form method="POST" enctype="multipart/form-data">
+                    <form method="POST" enctype="multipart/form-data" onsubmit="desbloquejarAbansDEnviar()">
                         {% csrf_token %}
                         
                         <div class="mb-3">
@@ -202,17 +202,25 @@
             if (obert) {
                 seccio.style.display = 'block';
                 missatge.style.display = 'none';
+                
+                // Si té pare, els switches de dies també s'han de bloquejar
+                if (isParent) {
+                    seccio.querySelectorAll('input[type="checkbox"]').forEach(c => c.disabled = true);
+                } else {
+                    seccio.querySelectorAll('input[type="checkbox"]').forEach(c => c.disabled = false);
+                }
+                
                 toggleDia('Dissabte');
                 toggleDia('Diumenge');
             } else {
                 seccio.style.display = 'none';
                 missatge.style.display = 'block';
-                seccio.querySelectorAll('input[type="time"]').forEach(i => i.disabled = true);
-                seccio.querySelectorAll('input[type="checkbox"]').forEach(c => c.disabled = true);
+                seccio.querySelectorAll('input').forEach(i => i.disabled = true);
             }
         }
 
         function toggleDia(dia) {
+            // Si el switch general està apagat, no fem res
             if (!document.getElementById('obertFinde').checked) return;
 
             const obertDia = document.getElementById(`obert${dia}`).checked;
@@ -229,6 +237,16 @@
                 rowInputs.style.opacity = "0.3";
                 msgTancat.style.display = 'block';
                 inputs.forEach(i => i.disabled = true);
+            }
+        }
+
+        // FUNCIÓ CRÍTICA: Desbloqueja els camps ocults/inactius un instant abans de prémer el botó
+        // perquè el navegador no cancel·li l'enviament del formulari.
+        function desbloquejarAbansDEnviar() {
+            const seccio = document.getElementById('seccioFinde');
+            if (seccio) {
+                // Selecciona absolutament tots els inputs (time i checkbox) i els activa
+                seccio.querySelectorAll('input').forEach(i => i.disabled = false);
             }
         }
 
