@@ -446,45 +446,60 @@ def editar_instalacio(request, pk):
     if request.method == "POST":
         # 1. Camps bàsics
         instalacio.nom = request.POST.get('nom')
-        instalacio.color = request.POST.get('color')
-        instalacio.hora_obertura = request.POST.get('hora_obertura')
-        instalacio.hora_tancament = request.POST.get('hora_tancament')
         
-        # 2. NOUS CAMPS: Horari de cap de setmana
-        # El checkbox envia 'on' si està marcat, si no, arriba None
-        esta_obert_finde = request.POST.get('obert_cap_setmana') == 'on'
-        instalacio.obert_cap_setmana = esta_obert_finde
-        
-        if esta_obert_finde:
-            instalacio.hora_obertura_finde = request.POST.get('hora_obertura_finde')
-            instalacio.hora_tancament_finde = request.POST.get('hora_tancament_finde')
-        else:
-            # Si marquem com a tancat, opcionalment podem buidar les hores
-            instalacio.hora_obertura_finde = None
-            instalacio.hora_tancament_finde = None
-
-        # 3. Imatge
-        if request.FILES.get('imatge'):
-            instalacio.imatge = request.FILES.get('imatge')
+        # Només hereten/editen horaris i colors si NO és un sub-espai fill
+        if not instalacio.parent:
+            instalacio.color = request.POST.get('color')
+            instalacio.hora_obertura = request.POST.get('hora_obertura')
+            instalacio.hora_tancament = request.POST.get('hora_tancament')
             
+            # 2. NOUS CAMPS: Horari de cap de setmana (General, Dissabte i Diumenge)
+            instalacio.obert_cap_setmana = request.POST.get('obert_cap_setmana') == 'on'
+            
+            # Configuració específica de Dissabte
+            instalacio.obert_dissabte = request.POST.get('obert_dissabte') == 'on'
+            h_ob_diss = request.POST.get('hora_obertura_dissabte')
+            h_ta_diss = request.POST.get('hora_tancament_dissabte')
+            instalacio.hora_obertura_dissabte = h_ob_diss if h_ob_diss else None
+            instalacio.hora_tancament_dissabte = h_ta_diss if h_ta_diss else None
+            
+            # Configuració específica de Diumenge
+            instalacio.obert_diumenge = request.POST.get('obert_diumenge') == 'on'
+            h_ob_diu = request.POST.get('hora_obertura_diumenge')
+            h_ta_diu = request.POST.get('hora_tancament_diumenge')
+            instalacio.hora_obertura_diumenge = h_ob_diu if h_ob_diu else None
+            instalacio.hora_tancament_diumenge = h_ta_diu if h_ta_diu else None
+            
+            # 3. Imatge
+            if request.FILES.get('imatge'):
+                instalacio.imatge = request.FILES.get('imatge')
+
+        # Guardem els canvis de la pista principal
         instalacio.save()
 
-        # 4. REPLICACIÓ A SUB-ZONES (Important!)
-        # Si aquesta pista té fills, els actualitzem perquè heretin els nous horaris
+        # 4. REPLICACIÓ AUTOMÀTICA A SUB-ZONES
+        # Si aquesta pista és un espai pare, actualitzem els fills perquè heretin absolutament tot
         fills = Instalacio.objects.filter(parent=instalacio)
         for fill in fills:
             fill.color = instalacio.color
             fill.hora_obertura = instalacio.hora_obertura
             fill.hora_tancament = instalacio.hora_tancament
+            
+            # Replitquem la nova estructura de cap de setmana als fills
             fill.obert_cap_setmana = instalacio.obert_cap_setmana
-            fill.hora_obertura_finde = instalacio.hora_obertura_finde
-            fill.hora_tancament_finde = instalacio.hora_tancament_finde
-            # La imatge normalment també s'hereta si no en tenen una de pròpia
+            fill.obert_dissabte = instalacio.obert_dissabte
+            fill.hora_obertura_dissabte = instalacio.hora_obertura_dissabte
+            fill.hora_tancament_dissabte = instalacio.hora_tancament_dissabte
+            
+            fill.obert_diumenge = instalacio.obert_diumenge
+            fill.hora_obertura_diumenge = instalacio.hora_obertura_diumenge
+            fill.hora_tancament_diumenge = instalacio.hora_tancament_diumenge
+            
             if instalacio.imatge:
                 fill.imatge = instalacio.imatge
             fill.save()
 
-        messages.success(request, f"Instal·lació '{instalacio.nom}' i les seves sub-zones actualitzades.")
+        messages.success(request, f"Instal·lació '{instalacio.nom}' i les seves sub-zones actualitzades correctament.")
         return redirect('gestio_tecnica')
         
     sub_espais = instalacio.sub_espais.all()
