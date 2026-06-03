@@ -1028,3 +1028,44 @@ def canviar_password_usuari(request, pk):
             messages.error(request, "No pots canviar la contrasenya de l'administrador principal.")
             
     return redirect('/gestio-tecnica/') # O la teva ruta de gestió
+
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import Reserva
+
+# VISTA 1: Només per obrir la pàgina de la brossa
+@staff_member_required
+def pantalla_brossa(request):
+    return render(request, 'reservescorbera/neteja_reserves.html')
+
+# VISTA 2: Acció de l'esborrat massiu per rang de dates
+@staff_member_required
+def esborrar_reserves_periode(request):
+    if request.method == "POST":
+        data_inici = request.POST.get('data_inici')
+        data_fi = request.POST.get('data_fi')
+        
+        if not data_inici or not data_fi:
+            messages.error(request, "S'han d'introduir les dues dates.")
+            return redirect('pantalla_brossa')
+            
+        if data_inici > data_fi:
+            messages.error(request, "La data d'inici no pot ser posterior a la de fi.")
+            return redirect('pantalla_brossa')
+            
+        # 🌟 AQUÍ ESTÀ EL CANVI PRINCIPAL:
+        # Utilitzem 'inici__date__range' per extreure només el dia del DateTimeField
+        reserves_a_eliminar = Reserva.objects.filter(inici__date__range=[data_inici, data_fi])
+        quantitat = reserves_a_eliminar.count()
+        
+        if quantitat == 0:
+            messages.info(request, "No s'ha trobat cap reserva en aquestes dates.")
+        else:
+            reserves_a_eliminar.delete()
+            messages.success(request, f"S'han eliminat permanentment {quantitat} reserves de la base de dades.")
+            
+        return redirect('pantalla_brossa')
+        
+    return redirect('pantalla_brossa')

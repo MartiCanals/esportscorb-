@@ -47,6 +47,11 @@ urlpatterns = [
     path('api/reserves/', views.api_reserves, name='api_reserves'),
     path('api/hores-ocupades/', views.api_hores_ocupades, name='api_hores_ocupades'),
 
+
+    path('gestio-tecnica/brossa/', views.pantalla_brossa, name='pantalla_brossa'),
+    path('gestio-tecnica/brossa/eliminar/', views.esborrar_reserves_periode, name='esborrar_reserves_periode'),
+
+
     path('password_reset/', auth_views.PasswordResetView.as_view(template_name='reservescorbera/password_reset.html'), name='password_reset'),
     path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='reservescorbera/password_reset_done.html'), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='reservescorbera/password_reset_confirm.html'), name='password_reset_confirm'),
