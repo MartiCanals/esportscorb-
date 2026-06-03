@@ -521,26 +521,35 @@ def crear_usuari(request):
         nom = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
-        tipus = request.POST.get('tipus')
+        tipus = request.POST.get('tipus')  # Rebra 'conserge', 'tecnic' o 'entitat'
         
         if User.objects.filter(username=nom).exists():
             messages.error(request, "Aquest nom d'usuari ja existeix.")
         else:
             nou_usuari = User.objects.create_user(username=nom, email=email, password=password)
             
+            # CAS 1: CONSERGE
             if tipus == "conserge":
-                # 1. Donem accés a l'àrea privada
                 nou_usuari.is_staff = True
                 nou_usuari.save()
                 
-                # 2. Assignem el grup 'Conserge'
-                # get_or_create assegura que el grup existeixi a la base de dades
                 grup_conserge, created = Group.objects.get_or_create(name='Conserge')
                 nou_usuari.groups.add(grup_conserge)
                 
                 messages.success(request, f"Conserge '{nom}' creat amb èxit.")
+            
+            # CAS 2: TÈCNIC (El que ens faltava!)
+            elif tipus == "admin" or tipus == "tecnic":
+                nou_usuari.is_staff = True  # Importantíssim perquè puguin gestionar l'entorn
+                nou_usuari.save()
+                
+                grup_tecnic, created = Group.objects.get_or_create(name='Tècnic')
+                nou_usuari.groups.add(grup_tecnic)
+                messages.success(request, f"Tècnic '{nom}' creat amb èxit.")
+                
+            # CAS 3: ENTITAT / VEÍ (El cas per defecte)
             else:
-                # Si és entitat, no és staff i no té grup (usuari ras)
+                # No és staff, no té grups, és un usuari normal del poble
                 messages.success(request, f"Entitat '{nom}' creada amb èxit.")
                 
             return redirect('/gestio-tecnica/#config')
